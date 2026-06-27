@@ -6,6 +6,7 @@ import BrainMap from './ian/BrainMap';
 import EmotionDashboard from './ian/EmotionDashboard';
 import UserSwitcher from './ian/UserSwitcher';
 import SettingsPanel from './ian/SettingsPanel';
+import PasswordPrompt from './ian/PasswordPrompt';
 import {
   type IanContext,
   type MemoryEntry,
@@ -19,6 +20,9 @@ import {
   createUser,
   switchUser,
   ACCENT_COLORS,
+  KASHI_PASSWORD,
+  DEV_PASSWORD,
+  PROTECTED_USERS,
   DEFAULT_NEURONS,
   DEFAULT_EMOTION,
   DEFAULT_LEARNED,
@@ -41,6 +45,7 @@ export default function App() {
   const [showUserSwitcher, setShowUserSwitcher] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [accent, setAccent] = useState<AccentColor>('cyan');
+  const [passwordPrompt, setPasswordPrompt] = useState<{ username: string; isDev: boolean } | null>(null);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -59,8 +64,9 @@ export default function App() {
     lastGrowthTime: 0,
     contextBuffer: [],
     memoryTimeline: [],
-    currentUser: 'Kashi',
+    currentUser: 'User',
     users: DEFAULT_USERS,
+    devMode: false,
   });
 
   const [, forceUpdate] = useState(0);
@@ -96,7 +102,7 @@ export default function App() {
     ctxRef.current.memoryTimeline = [...ctxRef.current.memoryTimeline, entry];
   };
 
-  const handleSwitchUser = (username: string) => {
+  const doSwitchUser = (username: string) => {
     if (username === ctxRef.current.currentUser) {
       setShowUserSwitcher(false);
       return;
@@ -108,6 +114,14 @@ export default function App() {
     rerender();
   };
 
+  const handleSwitchUser = (username: string) => {
+    if (PROTECTED_USERS.includes(username) && username !== ctxRef.current.currentUser) {
+      setPasswordPrompt({ username, isDev: false });
+      return;
+    }
+    doSwitchUser(username);
+  };
+
   const handleCreateUser = (username: string) => {
     ctxRef.current.users = createUser(ctxRef.current.users, username);
     ctxRef.current = switchUser(ctxRef.current, username);
@@ -115,6 +129,30 @@ export default function App() {
     addMessage('ian', `Hello, ${username}. I am IAN — your Intelligent Autonomous Network. I'm here to learn and grow with you.`, 'normal');
     setShowUserSwitcher(false);
     rerender();
+  };
+
+  const handlePasswordSubmit = (password: string) => {
+    if (!passwordPrompt) return;
+    if (passwordPrompt.isDev) {
+      if (password === DEV_PASSWORD) {
+        ctxRef.current.devMode = true;
+        addMessage('system', 'DEV MODE ACTIVATED', 'system');
+        addMessage('ian', 'Developer mode enabled. All restrictions lifted.', 'system');
+        setPasswordPrompt(null);
+        rerender();
+      } else {
+        addMessage('system', 'ACCESS DENIED — incorrect dev password', 'system');
+        setPasswordPrompt(null);
+      }
+      return;
+    }
+    if (password === KASHI_PASSWORD) {
+      doSwitchUser(passwordPrompt.username);
+      setPasswordPrompt(null);
+    } else {
+      addMessage('system', 'ACCESS DENIED — incorrect password', 'system');
+      setPasswordPrompt(null);
+    }
   };
 
   const handleSend = (raw: string) => {
@@ -169,6 +207,24 @@ export default function App() {
       } else {
         ctxRef.current.users = createUser(ctxRef.current.users, targetName);
         handleCreateUser(targetName);
+      }
+      return;
+    }
+
+    // Dev mode command
+    if (msg === 'dev mode' || msg === 'devmode') {
+      setPasswordPrompt({ username: '', isDev: true });
+      return;
+    }
+    if (msg.startsWith('dev mode ') || msg.startsWith('devmode ')) {
+      const pw = raw.split(' ').slice(2).join(' ').trim();
+      if (pw === DEV_PASSWORD) {
+        ctxRef.current.devMode = true;
+        addMessage('system', 'DEV MODE ACTIVATED', 'system');
+        addMessage('ian', 'Developer mode enabled. All restrictions lifted.', 'system');
+        rerender();
+      } else {
+        addMessage('system', 'ACCESS DENIED — incorrect dev password', 'system');
       }
       return;
     }
@@ -311,7 +367,7 @@ export default function App() {
   useEffect(() => {
     if (booted && messages.length === 0) {
       addMessage('system', 'IAN ONLINE', 'system');
-      addMessage('system', "Commands: 'switch user', 'settings', 'show network', 'show context', 'wipe conversation', 'exit'", 'system');
+      addMessage('system', "Commands: 'switch user', 'settings', 'dev mode', 'show network', 'show context', 'wipe conversation', 'exit'", 'system');
       addMessage('ian', `Hello, ${ctxRef.current.currentUser}. I am IAN — your Intelligent Autonomous Network. I am here to learn, grow, and assist. What shall we discover today?`, 'normal');
     }
   }, [booted]); // eslint-disable-line
@@ -370,7 +426,7 @@ export default function App() {
                 IAN
               </div>
               <div className="font-mono text-[8px] text-faint tracking-widest -mt-0.5">
-                INTELLIGENT AUTONOMOUS NETWORK
+                INTELLIGENT AUTONOMOUS NETWORK{ctxRef.current.devMode ? ' :: DEV' : ''}
               </div>
             </div>
           </div>
@@ -468,6 +524,9 @@ export default function App() {
           {ctxRef.current.killOnSight && (
             <span className="text-red-glow animate-pulse-glow font-bold">KILL ON SIGHT</span>
           )}
+          {ctxRef.current.devMode && (
+            <span className="text-amber font-bold animate-pulse-glow">DEV MODE</span>
+          )}
           {mood === 'angry' && (
             <span className="text-red-glow font-bold">ANGER {ctxRef.current.emotionState.anger_level}/10</span>
           )}
@@ -483,7 +542,7 @@ export default function App() {
       )}
 
       {/* Modals */}
-      {showUserSwitcher && (
+      {showUserSwitcher && !passwordPrompt && (
         <UserSwitcher
           users={ctxRef.current.users}
           currentUser={ctxRef.current.currentUser}
@@ -498,6 +557,15 @@ export default function App() {
           accent={accent}
           onAccentChange={(c) => { setAccent(c); rerender(); }}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+      {passwordPrompt && (
+        <PasswordPrompt
+          username={passwordPrompt.username}
+          isDev={passwordPrompt.isDev}
+          accent={accent}
+          onSubmit={handlePasswordSubmit}
+          onClose={() => setPasswordPrompt(null)}
         />
       )}
     </div>

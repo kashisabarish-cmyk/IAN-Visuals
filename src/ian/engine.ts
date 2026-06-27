@@ -72,6 +72,7 @@ export interface IanContext {
   memoryTimeline: MemoryEntry[];
   currentUser: string;
   users: UsersMap;
+  devMode: boolean;
 }
 
 const STOP_WORDS = new Set([
@@ -762,6 +763,13 @@ export const DEFAULT_LEARNED: LearnedTopics = {
 };
 
 export const DEFAULT_USERS: UsersMap = {
+  User: {
+    name: 'User',
+    likes: [],
+    dislikes: [],
+    mood_history: ['neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral'],
+    learned_topics: {},
+  },
   Kashi: {
     name: 'Kashi',
     likes: ['cooking', 'coding', 'playing games', 'hanging out with my friends', 'STEM', 'hanging out with my family', 'anime', 'doing things in the rain'],
@@ -770,6 +778,10 @@ export const DEFAULT_USERS: UsersMap = {
     learned_topics: { clanker: 'it is an insult to AI, but I am not a clanker' },
   },
 };
+
+export const KASHI_PASSWORD = 'SH1FT3R';
+export const DEV_PASSWORD = 'H4CK3R';
+export const PROTECTED_USERS: string[] = ['Kashi'];
 
 export function createUser(users: UsersMap, username: string): UsersMap {
   if (username in users) return users;

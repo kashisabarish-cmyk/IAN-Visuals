@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { X, UserPlus, Check } from 'lucide-react';
+import { X, UserPlus, Check, Lock } from 'lucide-react';
 import type { UsersMap, AccentColor } from './engine';
-import { ACCENT_COLORS } from './engine';
+import { ACCENT_COLORS, PROTECTED_USERS } from './engine';
 
 interface Props {
   users: UsersMap;
@@ -43,33 +43,40 @@ export default function UserSwitcher({ users, currentUser, accent, onSwitch, onC
         {/* User list */}
         <div className="p-5 space-y-2 max-h-64 overflow-y-auto scrollbar-thin">
           <div className="font-mono text-[10px] text-faint tracking-wider mb-2">SELECT USER</div>
-          {Object.keys(users).map((name) => (
-            <button
-              key={name}
-              onClick={() => onSwitch(name)}
-              className="w-full flex items-center justify-between px-3 py-2.5 rounded border transition-all"
-              style={{
-                borderColor: name === currentUser ? accentCfg.main + '60' : '#1c2740',
-                background: name === currentUser ? accentCfg.main + '10' : 'transparent',
-              }}
-            >
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold"
-                  style={{ background: accentCfg.main + '20', color: accentCfg.main }}
-                >
-                  {name.charAt(0).toUpperCase()}
-                </div>
-                <div className="text-left">
-                  <div className="font-mono text-sm text-slate-200">{name}</div>
-                  <div className="font-mono text-[9px] text-faint">
-                    {Object.keys(users[name].learned_topics).length} learned
+          {Object.keys(users).map((name) => {
+            const isProtected = PROTECTED_USERS.includes(name);
+            const isCurrent = name === currentUser;
+            return (
+              <button
+                key={name}
+                onClick={() => onSwitch(name)}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded border transition-all"
+                style={{
+                  borderColor: isCurrent ? accentCfg.main + '60' : '#1c2740',
+                  background: isCurrent ? accentCfg.main + '10' : 'transparent',
+                }}
+              >
+                <div className="flex items-center gap-3">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center font-mono text-xs font-bold"
+                    style={{ background: accentCfg.main + '20', color: accentCfg.main }}
+                  >
+                    {name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="text-left">
+                    <div className="font-mono text-sm text-slate-200 flex items-center gap-1.5">
+                      {name}
+                      {isProtected && <Lock size={11} className="text-amber" />}
+                    </div>
+                    <div className="font-mono text-[9px] text-faint">
+                      {Object.keys(users[name].learned_topics).length} learned{isProtected ? ' · protected' : ''}
+                    </div>
                   </div>
                 </div>
-              </div>
-              {name === currentUser && <Check size={16} style={{ color: accentCfg.main }} />}
-            </button>
-          ))}
+                {isCurrent && <Check size={16} style={{ color: accentCfg.main }} />}
+              </button>
+            );
+          })}
         </div>
 
         {/* Create new user */}
