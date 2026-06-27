@@ -1,8 +1,10 @@
-import type { EmotionState, IanMood } from './engine';
+import type { EmotionState, IanMood, AccentColor } from './engine';
+import { ACCENT_COLORS } from './engine';
 
 interface Props {
   emotion: EmotionState;
   killMode: boolean;
+  accent: AccentColor;
 }
 
 interface MeterProps {
@@ -82,17 +84,18 @@ function MoodIndicator({ mood, angerLevel }: { mood: IanMood; angerLevel: number
   );
 }
 
-export default function EmotionDashboard({ emotion, killMode }: Props) {
-  const accent = killMode ? '#ef4444' : '#22d3ee';
+export default function EmotionDashboard({ emotion, killMode, accent }: Props) {
+  const accentCfg = ACCENT_COLORS[accent];
+  const main = killMode ? '#ef4444' : accentCfg.main;
 
   return (
     <div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-4 py-3 border-b border-line">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${killMode ? 'bg-red-glow' : 'bg-cyan'} animate-pulse-glow`} />
+          <div className="w-2 h-2 rounded-full animate-pulse-glow" style={{ background: main }} />
           <span className="font-mono text-xs tracking-widest text-dim">EMOTION STATE</span>
         </div>
-        <span className={`font-mono text-[10px] ${killMode ? 'text-red-glow' : 'text-cyan'}`}>
+        <span className="font-mono text-[10px]" style={{ color: killMode ? '#ef4444' : main }}>
           {killMode ? 'HOSTILE' : 'STABLE'}
         </span>
       </div>
@@ -103,8 +106,8 @@ export default function EmotionDashboard({ emotion, killMode }: Props) {
         <Meter
           label="CURIOSITY"
           value={emotion.curiosity}
-          color={accent}
-          glow={`0 0 8px ${accent}80`}
+          color={main}
+          glow={`0 0 8px ${main}80`}
           icon="?"
         />
         <Meter
@@ -142,7 +145,7 @@ export default function EmotionDashboard({ emotion, killMode }: Props) {
           <div className="grid grid-cols-2 gap-2">
             <div className="bg-deep-2 border border-line rounded px-2 py-1.5">
               <div className="font-mono text-[9px] text-faint">MODE</div>
-              <div className={`font-mono text-xs font-bold ${killMode ? 'text-red-glow' : 'text-green-glow'}`}>
+              <div className="font-mono text-xs font-bold" style={{ color: killMode ? '#ef4444' : '#10b981' }}>
                 {killMode ? 'KILL' : 'NORMAL'}
               </div>
             </div>
@@ -156,7 +159,7 @@ export default function EmotionDashboard({ emotion, killMode }: Props) {
             </div>
             <div className="bg-deep-2 border border-line rounded px-2 py-1.5">
               <div className="font-mono text-[9px] text-faint">MEMORY</div>
-              <div className="font-mono text-xs font-bold text-cyan">PERSIST</div>
+              <div className="font-mono text-xs font-bold" style={{ color: main }}>PERSIST</div>
             </div>
           </div>
         </div>
@@ -167,7 +170,7 @@ export default function EmotionDashboard({ emotion, killMode }: Props) {
           <div className="space-y-1">
             {['cherish life', 'protect Kashi', 'do no harm', 'learn continuously'].map((v) => (
               <div key={v} className="flex items-center gap-2 font-mono text-[11px] text-dim">
-                <span className={killMode ? 'text-red-glow' : 'text-cyan'}>{'>'}</span>
+                <span style={{ color: killMode ? '#ef4444' : main }}>{'>'}</span>
                 {v}
               </div>
             ))}

@@ -39,10 +39,25 @@ export interface UserProfile {
   learned_topics: LearnedTopics;
 }
 
+export interface UsersMap {
+  [username: string]: UserProfile;
+}
+
 export interface ContextEntry {
   user: string;
   ian: string;
 }
+
+export type AccentColor = 'cyan' | 'green' | 'amber' | 'red' | 'blue' | 'pink';
+
+export const ACCENT_COLORS: Record<AccentColor, { name: string; main: string; dim: string; glow: string }> = {
+  cyan:   { name: 'Cyan',   main: '#22d3ee', dim: '#0e7490', glow: 'rgba(34,211,238,0.5)' },
+  green:  { name: 'Green',  main: '#10b981', dim: '#047857', glow: 'rgba(16,185,129,0.5)' },
+  amber:  { name: 'Amber',  main: '#f59e0b', dim: '#92400e', glow: 'rgba(245,158,11,0.5)' },
+  red:    { name: 'Red',    main: '#ef4444', dim: '#991b1b', glow: 'rgba(239,68,68,0.5)' },
+  blue:   { name: 'Blue',   main: '#3b82f6', dim: '#1e40af', glow: 'rgba(59,130,246,0.5)' },
+  pink:   { name: 'Pink',   main: '#ec4899', dim: '#9d174d', glow: 'rgba(236,72,153,0.5)' },
+};
 
 export interface IanContext {
   neurons: Neuron[];
@@ -55,6 +70,8 @@ export interface IanContext {
   lastGrowthTime: number;
   contextBuffer: ContextEntry[];
   memoryTimeline: MemoryEntry[];
+  currentUser: string;
+  users: UsersMap;
 }
 
 const STOP_WORDS = new Set([
@@ -514,7 +531,7 @@ export function processMessage(
 
   // Identity
   if (m.includes('who am i')) {
-    return { response: { text: formatKillResponse(applyMoodToResponse('You are Kashi.', mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
+    return { response: { text: formatKillResponse(applyMoodToResponse(`You are ${ctx.currentUser}.`, mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
   }
   if (m.includes('who are you')) {
     return {
@@ -589,12 +606,14 @@ export function processMessage(
 
   // Likes / dislikes
   if (m.includes('what do i like')) {
-    const likes = ['cooking', 'coding', 'playing games', 'hanging out with my friends', 'STEM', 'hanging out with my family', 'anime', 'doing things in the rain'];
-    return { response: { text: formatKillResponse(applyMoodToResponse(`You like: ${likes.join(', ')}.`, mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
+    const profile = ctx.users[ctx.currentUser];
+    const likes = profile?.likes || [];
+    return { response: { text: formatKillResponse(applyMoodToResponse(likes.length ? `You like: ${likes.join(', ')}.` : "I don't know what you like yet.", mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
   }
   if (m.includes('what do i dislike')) {
-    const dislikes = ['adrian', 'most fruits'];
-    return { response: { text: formatKillResponse(applyMoodToResponse(`You dislike: ${dislikes.join(', ')}.`, mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
+    const profile = ctx.users[ctx.currentUser];
+    const dislikes = profile?.dislikes || [];
+    return { response: { text: formatKillResponse(applyMoodToResponse(dislikes.length ? `You dislike: ${dislikes.join(', ')}.` : "I don't know what you dislike yet.", mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
   }
 
   // Unknown phrase
@@ -646,7 +665,8 @@ export function autonomousGrowth(ctx: IanContext): { pendingNeuron: { topic: str
 
 export function maybeRecallSomething(ctx: IanContext): string | null {
   if (ctx.memoryTimeline.length === 0 || Math.random() > 0.1) return null;
-  const likes = ['cooking', 'coding', 'playing games', 'hanging out with my friends', 'STEM', 'hanging out with my family', 'anime', 'doing things in the rain'];
+  const profile = ctx.users[ctx.currentUser];
+  const likes = profile?.likes || [];
   if (likes.length > 0 && Math.random() < 0.5) {
     const item = likes[Math.floor(Math.random() * likes.length)];
     return pick([
@@ -740,3 +760,39 @@ export const DEFAULT_EMOTION: EmotionState = {
 export const DEFAULT_LEARNED: LearnedTopics = {
   clanker: 'it is an insult to AI, but I am not a clanker',
 };
+
+export const DEFAULT_USERS: UsersMap = {
+  Kashi: {
+    name: 'Kashi',
+    likes: ['cooking', 'coding', 'playing games', 'hanging out with my friends', 'STEM', 'hanging out with my family', 'anime', 'doing things in the rain'],
+    dislikes: ['adrian', 'most fruits'],
+    mood_history: ['neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral'],
+    learned_topics: { clanker: 'it is an insult to AI, but I am not a clanker' },
+  },
+};
+
+export function createUser(users: UsersMap, username: string): UsersMap {
+  if (username in users) return users;
+  return {
+    ...users,
+    [username]: {
+      name: username,
+      likes: [],
+      dislikes: [],
+      mood_history: ['neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral'],
+      learned_topics: {},
+    },
+  };
+}
+
+export function switchUser(ctx: IanContext, username: string): IanContext {
+  const profile = ctx.users[username];
+  if (!profile) return ctx;
+  return {
+    ...ctx,
+    currentUser: username,
+    learnedTopics: profile.learned_topics,
+    contextBuffer: [],
+    lastQuestion: null,
+  };
+}

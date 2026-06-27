@@ -4,6 +4,9 @@ import type { Neuron } from './engine';
 interface Props {
   neurons: Neuron[];
   killMode: boolean;
+  accentColor?: string;
+  accentDim?: string;
+  accentGlow?: string;
 }
 
 interface PositionedNeuron extends Neuron {
@@ -22,7 +25,7 @@ function hash(str: string): number {
   return Math.abs(h);
 }
 
-export default function BrainMap({ neurons, killMode }: Props) {
+export default function BrainMap({ neurons, killMode, accentColor, accentDim }: Props) {
   const positioned = useMemo<PositionedNeuron[]>(() => {
     const cx = 200;
     const cy = 200;
@@ -44,8 +47,8 @@ export default function BrainMap({ neurons, killMode }: Props) {
     return map;
   }, [positioned]);
 
-  const accent = killMode ? '#ef4444' : '#22d3ee';
-  const accentDim = killMode ? '#7f1d1d' : '#0e7490';
+  const accent = killMode ? '#ef4444' : (accentColor || '#22d3ee');
+  const accentD = killMode ? '#7f1d1d' : (accentDim || '#0e7490');
 
   return (
     <div className="relative w-full h-full flex flex-col">
@@ -60,9 +63,9 @@ export default function BrainMap({ neurons, killMode }: Props) {
       <div className="flex-1 relative overflow-hidden">
         <svg viewBox="0 0 400 400" className="w-full h-full">
           {/* Background rings */}
-          <circle cx="200" cy="200" r="180" fill="none" stroke={accentDim} strokeWidth="0.5" opacity="0.2" />
-          <circle cx="200" cy="200" r="140" fill="none" stroke={accentDim} strokeWidth="0.5" opacity="0.15" />
-          <circle cx="200" cy="200" r="100" fill="none" stroke={accentDim} strokeWidth="0.5" opacity="0.1" />
+          <circle cx="200" cy="200" r="180" fill="none" stroke={accentD} strokeWidth="0.5" opacity="0.2" />
+          <circle cx="200" cy="200" r="140" fill="none" stroke={accentD} strokeWidth="0.5" opacity="0.15" />
+          <circle cx="200" cy="200" r="100" fill="none" stroke={accentD} strokeWidth="0.5" opacity="0.1" />
 
           {/* Rotating radar sweep */}
           <g className="animate-radar" style={{ transformOrigin: '200px 200px' }}>

@@ -1,20 +1,28 @@
 import { useEffect, useRef, useState } from 'react';
+import { Users, Settings } from 'lucide-react';
 import BootSequence from './ian/BootSequence';
 import ChatInterface, { type ChatMessage } from './ian/ChatInterface';
 import BrainMap from './ian/BrainMap';
 import EmotionDashboard from './ian/EmotionDashboard';
+import UserSwitcher from './ian/UserSwitcher';
+import SettingsPanel from './ian/SettingsPanel';
 import {
   type IanContext,
   type MemoryEntry,
+  type AccentColor,
   processMessage,
   updateEmotionState,
   autonomousGrowth,
   addNeuron,
   compressMemory,
   maybeRecallSomething,
+  createUser,
+  switchUser,
+  ACCENT_COLORS,
   DEFAULT_NEURONS,
   DEFAULT_EMOTION,
   DEFAULT_LEARNED,
+  DEFAULT_USERS,
   RANDOM_THOUGHTS_NEUTRAL,
   RANDOM_THOUGHTS_ANGRY,
   RANDOM_THOUGHTS_HAPPY,
@@ -30,6 +38,9 @@ export default function App() {
   const [thinking, setThinking] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState<null | 'conversation' | 'all'>(null);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' && window.innerWidth >= 1024);
+  const [showUserSwitcher, setShowUserSwitcher] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [accent, setAccent] = useState<AccentColor>('cyan');
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -48,6 +59,8 @@ export default function App() {
     lastGrowthTime: 0,
     contextBuffer: [],
     memoryTimeline: [],
+    currentUser: 'Kashi',
+    users: DEFAULT_USERS,
   });
 
   const [, forceUpdate] = useState(0);
@@ -83,6 +96,27 @@ export default function App() {
     ctxRef.current.memoryTimeline = [...ctxRef.current.memoryTimeline, entry];
   };
 
+  const handleSwitchUser = (username: string) => {
+    if (username === ctxRef.current.currentUser) {
+      setShowUserSwitcher(false);
+      return;
+    }
+    ctxRef.current = switchUser(ctxRef.current, username);
+    addMessage('system', `Switched to user: ${username}`, 'system');
+    addMessage('ian', `Hello, ${username}. I am IAN. Welcome.`, 'normal');
+    setShowUserSwitcher(false);
+    rerender();
+  };
+
+  const handleCreateUser = (username: string) => {
+    ctxRef.current.users = createUser(ctxRef.current.users, username);
+    ctxRef.current = switchUser(ctxRef.current, username);
+    addMessage('system', `New user profile created: ${username}`, 'system');
+    addMessage('ian', `Hello, ${username}. I am IAN — your Intelligent Autonomous Network. I'm here to learn and grow with you.`, 'normal');
+    setShowUserSwitcher(false);
+    rerender();
+  };
+
   const handleSend = (raw: string) => {
     const msg = raw.toLowerCase().trim();
     addMessage('user', raw);
@@ -105,12 +139,12 @@ export default function App() {
         if (confirmWipe === 'conversation') {
           ctxRef.current.memoryTimeline = [];
           ctxRef.current.contextBuffer = [];
-          addMessage('ian', 'Conversation memory wiped. I still know who you are and what you like, Kashi.', 'wipe');
+          addMessage('ian', 'Conversation memory wiped. I still know who you are.', 'wipe');
         } else {
           ctxRef.current.neurons = [];
           ctxRef.current.memoryTimeline = [];
           ctxRef.current.contextBuffer = [];
-          addMessage('ian', 'Full memory wipe complete. I remember you, Kashi. Everything else is gone.', 'wipe');
+          addMessage('ian', 'Full memory wipe complete. I remember you. Everything else is gone.', 'wipe');
         }
         setConfirmWipe(null);
         rerender();
@@ -121,6 +155,38 @@ export default function App() {
         setConfirmWipe(null);
         return;
       }
+    }
+
+    // Switch user command
+    if (msg === 'switch user') {
+      setShowUserSwitcher(true);
+      return;
+    }
+    if (msg.startsWith('switch user ')) {
+      const targetName = raw.slice(12).trim();
+      if (targetName in ctxRef.current.users) {
+        handleSwitchUser(targetName);
+      } else {
+        ctxRef.current.users = createUser(ctxRef.current.users, targetName);
+        handleCreateUser(targetName);
+      }
+      return;
+    }
+
+    // Settings command
+    if (msg === 'settings' || msg === 'change color' || msg === 'change accent') {
+      setShowSettings(true);
+      return;
+    }
+    if (msg.startsWith('set color ') || msg.startsWith('set accent ')) {
+      const colorName = msg.split(' ').slice(-1)[0] as AccentColor;
+      if (colorName in ACCENT_COLORS) {
+        setAccent(colorName);
+        addMessage('system', `Accent color changed to ${ACCENT_COLORS[colorName].name}.`, 'system');
+      } else {
+        addMessage('ian', `Available colors: ${Object.keys(ACCENT_COLORS).join(', ')}`, 'system');
+      }
+      return;
     }
 
     // Special commands
@@ -165,7 +231,7 @@ export default function App() {
       return;
     }
     if (msg === 'exit') {
-      addMessage('system', 'Goodbye, Kashi. I\'ll remember everything.', 'system');
+      addMessage('system', 'Goodbye. I\'ll remember everything.', 'system');
       return;
     }
 
@@ -179,7 +245,7 @@ export default function App() {
       const { response, newCtx } = processMessage(ctxRef.current, raw);
       ctxRef.current = newCtx;
       addMessage('ian', response.text, response.type);
-      logMemory('Kashi', raw, response.text);
+      logMemory(ctxRef.current.currentUser, raw, response.text);
       addToContext(raw, response.text);
       setThinking(false);
       rerender();
@@ -215,7 +281,7 @@ export default function App() {
         }, 1200);
       }
 
-      // Curiosity questions (only when curious enough and not angry)
+      // Curiosity questions
       if (ctxRef.current.emotionState.curiosity > 0.6 && Math.random() < 0.12 && ctxRef.current.emotionState.mood !== 'angry') {
         let q = RANDOM_QUESTIONS[Math.floor(Math.random() * RANDOM_QUESTIONS.length)];
         if (ctxRef.current.killMode) q = `[Kill Mode Question] ${q}`;
@@ -245,13 +311,17 @@ export default function App() {
   useEffect(() => {
     if (booted && messages.length === 0) {
       addMessage('system', 'IAN ONLINE', 'system');
-      addMessage('system', "Say 'ian' anytime to interact. Commands: 'show network', 'show context', 'wipe conversation', 'wipe all memory', 'exit'", 'system');
-      addMessage('ian', 'Hello, Kashi. I am IAN — your Intelligent Autonomous Network. I am here to learn, grow, and assist. What shall we discover today?', 'normal');
+      addMessage('system', "Commands: 'switch user', 'settings', 'show network', 'show context', 'wipe conversation', 'exit'", 'system');
+      addMessage('ian', `Hello, ${ctxRef.current.currentUser}. I am IAN — your Intelligent Autonomous Network. I am here to learn, grow, and assist. What shall we discover today?`, 'normal');
     }
   }, [booted]); // eslint-disable-line
 
   const killMode = ctxRef.current.killMode;
   const mood = ctxRef.current.emotionState.mood;
+  const accentCfg = ACCENT_COLORS[accent];
+  const accentMain = killMode ? '#ef4444' : accentCfg.main;
+  const accentGlow = killMode ? 'rgba(239,68,68,0.5)' : accentCfg.glow;
+  const accentDim = killMode ? '#991b1b' : accentCfg.dim;
 
   if (!booted) {
     return <BootSequence onComplete={() => setBooted(true)} />;
@@ -261,14 +331,42 @@ export default function App() {
     <div className={`h-screen w-screen flex flex-col bg-deep overflow-hidden ${killMode ? 'grid-bg-red' : 'grid-bg'}`}>
       {/* Top status bar */}
       <header className={`flex items-center justify-between px-4 py-2 border-b ${killMode ? 'border-red-glow/30' : 'border-line'} bg-panel/80 backdrop-blur`}>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 border-2 ${killMode ? 'border-red-glow' : mood === 'angry' ? 'border-red-glow' : 'border-cyan'} rounded-sm flex items-center justify-center relative`}>
-              <div className={`w-3 h-3 ${killMode ? 'bg-red-glow' : mood === 'angry' ? 'bg-red-glow' : 'bg-cyan'} rounded-sm animate-pulse-glow`} />
-              {(killMode || mood === 'angry') && <div className="absolute inset-0 border border-red-glow/50 rounded-sm animate-pulse-glow" />}
+        <div className="flex items-center gap-3">
+          {/* User switcher button */}
+          <button
+            onClick={() => setShowUserSwitcher(true)}
+            className="flex items-center gap-2 px-2.5 py-1.5 rounded border transition-all hover:bg-panel-2"
+            style={{ borderColor: accentMain + '40' }}
+            title="Switch user"
+          >
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center font-mono text-[10px] font-bold"
+              style={{ background: accentMain + '20', color: accentMain }}
+            >
+              {ctxRef.current.currentUser.charAt(0).toUpperCase()}
+            </div>
+            <span className="font-mono text-xs text-slate-200 hidden sm:inline">{ctxRef.current.currentUser}</span>
+            <Users size={14} style={{ color: accentMain }} />
+          </button>
+
+          {/* Settings button */}
+          <button
+            onClick={() => setShowSettings(true)}
+            className="p-1.5 rounded border transition-all hover:bg-panel-2"
+            style={{ borderColor: accentMain + '30' }}
+            title="Settings"
+          >
+            <Settings size={14} style={{ color: accentMain }} />
+          </button>
+
+          {/* IAN logo */}
+          <div className="flex items-center gap-2 ml-2">
+            <div className={`w-8 h-8 border-2 rounded-sm flex items-center justify-center relative`} style={{ borderColor: accentMain }}>
+              <div className={`w-3 h-3 rounded-sm animate-pulse-glow`} style={{ background: accentMain }} />
+              {(killMode || mood === 'angry') && <div className="absolute inset-0 border rounded-sm animate-pulse-glow" style={{ borderColor: '#ef444450' }} />}
             </div>
             <div>
-              <div className={`font-display text-lg font-bold tracking-widest ${killMode ? 'text-red-glow text-glow-red' : 'text-cyan text-glow-cyan'}`}>
+              <div className="font-display text-lg font-bold tracking-widest" style={{ color: accentMain, textShadow: `0 0 10px ${accentGlow}` }}>
                 IAN
               </div>
               <div className="font-mono text-[8px] text-faint tracking-widest -mt-0.5">
@@ -281,19 +379,19 @@ export default function App() {
         <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center gap-4 font-mono text-[10px]">
             <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${killMode ? 'bg-red-glow' : 'bg-green-glow'} animate-pulse-glow`} />
+              <div className={`w-1.5 h-1.5 rounded-full animate-pulse-glow`} style={{ background: killMode ? '#ef4444' : '#10b981' }} />
               <span className="text-dim">SYS</span>
-              <span className={killMode ? 'text-red-glow' : 'text-green-glow'}>OK</span>
+              <span style={{ color: killMode ? '#ef4444' : '#10b981' }}>OK</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-cyan animate-pulse-glow" />
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse-glow" style={{ background: accentMain }} />
               <span className="text-dim">NET</span>
-              <span className="text-cyan">LINK</span>
+              <span style={{ color: accentMain }}>LINK</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${mood === 'angry' ? 'bg-red-glow animate-pulse-glow' : killMode ? 'bg-red-glow animate-pulse-glow' : 'bg-amber'}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${mood === 'angry' || killMode ? 'animate-pulse-glow' : ''}`} style={{ background: mood === 'angry' ? '#ef4444' : killMode ? '#ef4444' : '#f59e0b' }} />
               <span className="text-dim">MOOD</span>
-              <span className={mood === 'angry' ? 'text-red-glow' : killMode ? 'text-red-glow' : 'text-amber'}>
+              <span style={{ color: mood === 'angry' ? '#ef4444' : killMode ? '#ef4444' : '#f59e0b' }}>
                 {mood.toUpperCase()}{killMode ? ' / KILL' : ''}
               </span>
             </div>
@@ -308,7 +406,7 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel - Brain Map */}
         <aside className={`hidden lg:flex w-80 border-r ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50`}>
-          <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} />
+          <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} accentColor={accentMain} accentDim={accentDim} accentGlow={accentGlow} />
         </aside>
 
         {/* Center - Chat */}
@@ -319,11 +417,11 @@ export default function App() {
               <button
                 key={v}
                 onClick={() => setView(v)}
-                className={`flex-1 font-mono text-xs py-2 tracking-wider transition-colors ${
-                  view === v
-                    ? killMode ? 'text-red-glow border-b-2 border-red-glow' : 'text-cyan border-b-2 border-cyan'
-                    : 'text-faint hover:text-dim'
-                }`}
+                className="flex-1 font-mono text-xs py-2 tracking-wider transition-colors"
+                style={{
+                  color: view === v ? accentMain : '#475569',
+                  borderBottom: view === v ? `2px solid ${accentMain}` : 'none',
+                }}
               >
                 {v.toUpperCase()}
               </button>
@@ -336,6 +434,7 @@ export default function App() {
               <ChatInterface
                 messages={messages}
                 killMode={killMode}
+                accent={accent}
                 pendingNeuron={ctxRef.current.pendingNeuron}
                 onSend={handleSend}
                 onNeuronApprove={handleNeuronApprove}
@@ -343,24 +442,24 @@ export default function App() {
               />
             </div>
             <div className={`h-full lg:hidden ${view === 'brain' ? 'block' : 'hidden'}`}>
-              <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} />
+              <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} accentColor={accentMain} accentDim={accentDim} accentGlow={accentGlow} />
             </div>
             <div className={`h-full lg:hidden ${view === 'emotion' ? 'block' : 'hidden'}`}>
-              <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} />
+              <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} />
             </div>
           </div>
         </main>
 
         {/* Right panel - Emotion Dashboard */}
         <aside className={`hidden lg:flex w-72 border-l ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50`}>
-          <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} />
+          <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} />
         </aside>
       </div>
 
       {/* Bottom status bar */}
       <footer className={`flex items-center justify-between px-4 py-1.5 border-t ${killMode ? 'border-red-glow/30 bg-red-glow/5' : 'border-line bg-panel/50'} font-mono text-[10px]`}>
         <div className="flex items-center gap-4">
-          <span className="text-faint">USER: <span className={killMode ? 'text-red-glow' : 'text-cyan'}>KASHI</span></span>
+          <span className="text-faint">USER: <span style={{ color: accentMain }}>{ctxRef.current.currentUser}</span></span>
           <span className="text-faint">NEURONS: <span className="text-dim">{ctxRef.current.neurons.length}</span></span>
           <span className="text-faint hidden sm:inline">LEARNED: <span className="text-dim">{Object.keys(ctxRef.current.learnedTopics).length}</span></span>
           <span className="text-faint hidden sm:inline">CTX: <span className="text-dim">{ctxRef.current.contextBuffer.length}/10</span></span>
@@ -381,6 +480,25 @@ export default function App() {
         <div className="fixed inset-0 pointer-events-none z-40" style={{
           boxShadow: 'inset 0 0 100px rgba(239, 68, 68, 0.15)',
         }} />
+      )}
+
+      {/* Modals */}
+      {showUserSwitcher && (
+        <UserSwitcher
+          users={ctxRef.current.users}
+          currentUser={ctxRef.current.currentUser}
+          accent={accent}
+          onSwitch={handleSwitchUser}
+          onCreate={handleCreateUser}
+          onClose={() => setShowUserSwitcher(false)}
+        />
+      )}
+      {showSettings && (
+        <SettingsPanel
+          accent={accent}
+          onAccentChange={(c) => { setAccent(c); rerender(); }}
+          onClose={() => setShowSettings(false)}
+        />
       )}
     </div>
   );

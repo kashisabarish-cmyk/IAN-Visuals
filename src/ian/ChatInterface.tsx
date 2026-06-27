@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import type { IanResponse, IanContext } from './engine';
+import type { IanResponse, IanContext, AccentColor } from './engine';
+import { ACCENT_COLORS } from './engine';
 
 export interface ChatMessage {
   id: string;
@@ -12,15 +13,19 @@ export interface ChatMessage {
 interface Props {
   messages: ChatMessage[];
   killMode: boolean;
+  accent: AccentColor;
   pendingNeuron: IanContext['pendingNeuron'];
   onSend: (msg: string) => void;
   onNeuronApprove: (approved: boolean) => void;
   thinking: boolean;
 }
 
-export default function ChatInterface({ messages, killMode, pendingNeuron, onSend, onNeuronApprove, thinking }: Props) {
+export default function ChatInterface({ messages, killMode, accent, pendingNeuron, onSend, onNeuronApprove, thinking }: Props) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const accentCfg = ACCENT_COLORS[accent];
+  const accentMain = killMode ? '#ef4444' : accentCfg.main;
+  const accentGlow = killMode ? 'rgba(239,68,68,0.5)' : accentCfg.glow;
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -36,24 +41,24 @@ export default function ChatInterface({ messages, killMode, pendingNeuron, onSen
     }
   };
 
-  const colorForType = (type: IanResponse['type'], sender: string) => {
-    if (sender === 'user') return 'text-slate-200';
-    if (sender === 'system') return 'text-faint';
+  const colorForType = (type: IanResponse['type'], sender: string): string => {
+    if (sender === 'user') return '#e2e8f0';
+    if (sender === 'system') return '#475569';
     switch (type) {
-      case 'kill': return 'text-red-glow text-glow-red';
-      case 'kos': return 'text-red-glow text-glow-red animate-pulse-glow';
-      case 'angry': return 'text-red-glow';
-      case 'protection': return 'text-green-glow font-bold';
-      case 'thought': return 'text-amber text-glow-amber';
-      case 'question': return 'text-amber';
-      case 'learned': return 'text-green-glow';
-      case 'neuron-added': return 'text-green-glow';
-      case 'neuron-rejected': return 'text-faint';
-      case 'mood': return 'text-amber';
-      case 'recall': return 'text-cyan';
-      case 'wipe': return 'text-amber';
-      case 'system': return 'text-faint';
-      default: return killMode ? 'text-red-glow' : 'text-cyan text-glow-cyan';
+      case 'kill': return '#ef4444';
+      case 'kos': return '#ef4444';
+      case 'angry': return '#ef4444';
+      case 'protection': return '#10b981';
+      case 'thought': return '#f59e0b';
+      case 'question': return '#f59e0b';
+      case 'learned': return '#10b981';
+      case 'neuron-added': return '#10b981';
+      case 'neuron-rejected': return '#475569';
+      case 'mood': return '#f59e0b';
+      case 'recall': return accentMain;
+      case 'wipe': return '#f59e0b';
+      case 'system': return '#475569';
+      default: return killMode ? '#ef4444' : accentMain;
     }
   };
 
@@ -75,11 +80,11 @@ export default function ChatInterface({ messages, killMode, pendingNeuron, onSen
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-line">
         <div className="flex items-center gap-2">
-          <div className={`w-2 h-2 rounded-full ${killMode ? 'bg-red-glow' : 'bg-cyan'} animate-pulse-glow`} />
+          <div className="w-2 h-2 rounded-full animate-pulse-glow" style={{ background: accentMain }} />
           <span className="font-mono text-xs tracking-widest text-dim">CHAT INTERFACE</span>
         </div>
         <div className="flex items-center gap-3">
-          <span className={`font-mono text-[10px] ${killMode ? 'text-red-glow animate-pulse-glow' : 'text-green-glow'}`}>
+          <span className="font-mono text-[10px]" style={{ color: killMode ? '#ef4444' : '#10b981' }}>
             {killMode ? 'KILL MODE' : 'ONLINE'}
           </span>
         </div>
@@ -87,35 +92,38 @@ export default function ChatInterface({ messages, killMode, pendingNeuron, onSen
 
       {/* Messages */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto scrollbar-thin p-4 space-y-3">
-        {messages.map((msg) => (
-          <div key={msg.id} className="animate-float-up">
-            <div className="flex items-baseline gap-2">
-              <span className={`font-mono text-[10px] font-bold tracking-wider ${colorForType(msg.type, msg.sender)}`}>
-                {prefixFor(msg.sender, msg.type)}
-              </span>
-              <span className="font-mono text-[9px] text-faint">
-                {new Date(msg.timestamp).toLocaleTimeString('en-US', { hour12: false })}
-              </span>
+        {messages.map((msg) => {
+          const color = colorForType(msg.type, msg.sender);
+          return (
+            <div key={msg.id} className="animate-float-up">
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-[10px] font-bold tracking-wider" style={{ color }}>
+                  {prefixFor(msg.sender, msg.type)}
+                </span>
+                <span className="font-mono text-[9px] text-faint">
+                  {new Date(msg.timestamp).toLocaleTimeString('en-US', { hour12: false })}
+                </span>
+              </div>
+              <div className="font-mono text-sm mt-0.5 whitespace-pre-wrap" style={{ color, textShadow: msg.sender === 'ian' && !killMode ? `0 0 6px ${accentGlow}` : undefined }}>
+                {msg.sender === 'user' && <span className="text-faint mr-1">{'>'}</span>}
+                {msg.text}
+              </div>
             </div>
-            <div className={`font-mono text-sm mt-0.5 ${colorForType(msg.type, msg.sender)}`}>
-              {msg.sender === 'user' && <span className="text-faint mr-1">{'>'}</span>}
-              {msg.text}
-            </div>
-          </div>
-        ))}
+          );
+        })}
 
         {/* Thinking indicator */}
         {thinking && (
           <div className="animate-float-up">
             <div className="flex items-baseline gap-2">
-              <span className={`font-mono text-[10px] font-bold tracking-wider ${killMode ? 'text-red-glow' : 'text-cyan'}`}>
+              <span className="font-mono text-[10px] font-bold tracking-wider" style={{ color: accentMain }}>
                 IAN
               </span>
             </div>
             <div className="flex items-center gap-1 mt-1">
-              <div className={`w-1.5 h-1.5 rounded-full typing-dot ${killMode ? 'bg-red-glow' : 'bg-cyan'}`} />
-              <div className={`w-1.5 h-1.5 rounded-full typing-dot ${killMode ? 'bg-red-glow' : 'bg-cyan'}`} style={{ animationDelay: '0.2s' }} />
-              <div className={`w-1.5 h-1.5 rounded-full typing-dot ${killMode ? 'bg-red-glow' : 'bg-cyan'}`} style={{ animationDelay: '0.4s' }} />
+              <div className="w-1.5 h-1.5 rounded-full typing-dot" style={{ background: accentMain }} />
+              <div className="w-1.5 h-1.5 rounded-full typing-dot" style={{ background: accentMain, animationDelay: '0.2s' }} />
+              <div className="w-1.5 h-1.5 rounded-full typing-dot" style={{ background: accentMain, animationDelay: '0.4s' }} />
             </div>
           </div>
         )}
@@ -147,8 +155,8 @@ export default function ChatInterface({ messages, killMode, pendingNeuron, onSen
 
       {/* Input */}
       <form onSubmit={handleSubmit} className="border-t border-line p-3">
-        <div className="flex items-center gap-2 bg-deep-2 border border-line rounded px-3 py-2 focus-within:border-cyan transition-colors">
-          <span className={`font-mono text-sm ${killMode ? 'text-red-glow' : 'text-cyan'}`}>{'>'}</span>
+        <div className="flex items-center gap-2 bg-deep-2 border border-line rounded px-3 py-2 transition-colors focus-within:border-bright">
+          <span className="font-mono text-sm" style={{ color: accentMain }}>{'>'}</span>
           <input
             type="text"
             value={input}
@@ -159,18 +167,15 @@ export default function ChatInterface({ messages, killMode, pendingNeuron, onSen
           />
           <button
             type="submit"
-            className={`font-mono text-xs px-3 py-1 rounded border transition-colors ${
-              killMode
-                ? 'border-red-glow/40 text-red-glow hover:bg-red-glow/10'
-                : 'border-cyan/40 text-cyan hover:bg-cyan/10'
-            }`}
+            className="font-mono text-xs px-3 py-1 rounded border transition-colors"
+            style={{ borderColor: accentMain + '60', color: accentMain }}
           >
             SEND
           </button>
         </div>
         <div className="flex items-center justify-between mt-2 px-1">
           <span className="font-mono text-[9px] text-faint">
-            TRY: "what is consciousness" · "learn topic: explanation" · "how do you feel" · "do you remember X"
+            TRY: "switch user" · "settings" · "what is consciousness" · "how do you feel"
           </span>
           <span className="font-mono text-[9px] text-faint">
             {killMode ? 'say "stand down"' : 'say "the world needs fixing"'}
