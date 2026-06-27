@@ -41,11 +41,17 @@ export default function ChatInterface({ messages, killMode, pendingNeuron, onSen
     if (sender === 'system') return 'text-faint';
     switch (type) {
       case 'kill': return 'text-red-glow text-glow-red';
+      case 'kos': return 'text-red-glow text-glow-red animate-pulse-glow';
+      case 'angry': return 'text-red-glow';
+      case 'protection': return 'text-green-glow font-bold';
       case 'thought': return 'text-amber text-glow-amber';
       case 'question': return 'text-amber';
       case 'learned': return 'text-green-glow';
       case 'neuron-added': return 'text-green-glow';
       case 'neuron-rejected': return 'text-faint';
+      case 'mood': return 'text-amber';
+      case 'recall': return 'text-cyan';
+      case 'wipe': return 'text-amber';
       case 'system': return 'text-faint';
       default: return killMode ? 'text-red-glow' : 'text-cyan text-glow-cyan';
     }
@@ -56,6 +62,11 @@ export default function ChatInterface({ messages, killMode, pendingNeuron, onSen
     if (sender === 'system') return 'SYS';
     if (type === 'thought') return 'IAN::THOUGHT';
     if (type === 'question') return 'IAN::ASKS';
+    if (type === 'angry') return 'IAN::ANGRY';
+    if (type === 'protection') return 'IAN::PROTECT';
+    if (type === 'mood') return 'IAN::MOOD';
+    if (type === 'recall') return 'IAN::RECALL';
+    if (type === 'kos') return 'IAN::KOS';
     return 'IAN';
   };
 
@@ -159,7 +170,7 @@ export default function ChatInterface({ messages, killMode, pendingNeuron, onSen
         </div>
         <div className="flex items-center justify-between mt-2 px-1">
           <span className="font-mono text-[9px] text-faint">
-            TRY: "what is consciousness" · "learn topic: explanation" · "feel about life"
+            TRY: "what is consciousness" · "learn topic: explanation" · "how do you feel" · "do you remember X"
           </span>
           <span className="font-mono text-[9px] text-faint">
             {killMode ? 'say "stand down"' : 'say "the world needs fixing"'}

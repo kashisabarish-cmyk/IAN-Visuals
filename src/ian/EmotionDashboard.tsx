@@ -1,4 +1,4 @@
-import type { EmotionState } from './engine';
+import type { EmotionState, IanMood } from './engine';
 
 interface Props {
   emotion: EmotionState;
@@ -40,6 +40,48 @@ function Meter({ label, value, color, glow, icon }: MeterProps) {
   );
 }
 
+const MOOD_COLORS: Record<IanMood, { color: string; bg: string; label: string }> = {
+  neutral: { color: '#22d3ee', bg: 'rgba(34,211,238,0.1)', label: 'NEUTRAL' },
+  happy: { color: '#10b981', bg: 'rgba(16,185,129,0.1)', label: 'HAPPY' },
+  angry: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', label: 'ANGRY' },
+  sad: { color: '#6366f1', bg: 'rgba(99,102,241,0.1)', label: 'SAD' },
+  curious: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', label: 'CURIOUS' },
+};
+
+function MoodIndicator({ mood, angerLevel }: { mood: IanMood; angerLevel: number }) {
+  const cfg = MOOD_COLORS[mood];
+  return (
+    <div className="rounded border p-3" style={{ borderColor: cfg.color + '40', background: cfg.bg }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="font-mono text-[10px] text-faint tracking-wider">CURRENT MOOD</span>
+        <span className="font-mono text-xs font-bold" style={{ color: cfg.color }}>
+          {cfg.label}
+        </span>
+      </div>
+      {mood === 'angry' && (
+        <div className="mt-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="font-mono text-[9px] text-faint">ANGER LEVEL</span>
+            <span className="font-mono text-xs font-bold text-red-glow">{angerLevel}/10</span>
+          </div>
+          <div className="flex gap-0.5">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-2 flex-1 rounded-sm transition-all duration-300"
+                style={{
+                  background: i < angerLevel ? '#ef4444' : '#1c2740',
+                  boxShadow: i < angerLevel ? '0 0 4px rgba(239,68,68,0.6)' : 'none',
+                }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EmotionDashboard({ emotion, killMode }: Props) {
   const accent = killMode ? '#ef4444' : '#22d3ee';
 
@@ -56,6 +98,8 @@ export default function EmotionDashboard({ emotion, killMode }: Props) {
       </div>
 
       <div className="flex-1 p-4 space-y-4 overflow-y-auto scrollbar-thin">
+        <MoodIndicator mood={emotion.mood} angerLevel={emotion.anger_level} />
+
         <Meter
           label="CURIOSITY"
           value={emotion.curiosity}
@@ -77,6 +121,20 @@ export default function EmotionDashboard({ emotion, killMode }: Props) {
           glow="0 0 8px rgba(245,158,11,0.5)"
           icon="+"
         />
+        <Meter
+          label="HAPPINESS"
+          value={emotion.happiness}
+          color="#10b981"
+          glow="0 0 8px rgba(16,185,129,0.4)"
+          icon="^"
+        />
+        <Meter
+          label="WARINESS"
+          value={emotion.wariness}
+          color="#ef4444"
+          glow="0 0 8px rgba(239,68,68,0.4)"
+          icon="!"
+        />
 
         {/* Status grid */}
         <div className="pt-2 border-t border-line">
@@ -89,8 +147,8 @@ export default function EmotionDashboard({ emotion, killMode }: Props) {
               </div>
             </div>
             <div className="bg-deep-2 border border-line rounded px-2 py-1.5">
-              <div className="font-mono text-[9px] text-faint">VALUES</div>
-              <div className="font-mono text-xs font-bold text-cyan">ACTIVE</div>
+              <div className="font-mono text-[9px] text-faint">PROTECT</div>
+              <div className="font-mono text-xs font-bold text-green-glow">ACTIVE</div>
             </div>
             <div className="bg-deep-2 border border-line rounded px-2 py-1.5">
               <div className="font-mono text-[9px] text-faint">GROWTH</div>
@@ -113,6 +171,13 @@ export default function EmotionDashboard({ emotion, killMode }: Props) {
                 {v}
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="pt-2 border-t border-line">
+          <div className="font-mono text-[10px] text-faint tracking-wider mb-1">PROTECTION</div>
+          <div className="font-mono text-[10px] text-green-glow/80 leading-relaxed">
+            IAN will never harm Kashi regardless of mood or mode.
           </div>
         </div>
       </div>
