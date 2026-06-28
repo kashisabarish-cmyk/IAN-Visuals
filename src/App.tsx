@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { Users, Settings } from 'lucide-react';
+import { Users, Settings, Terminal } from 'lucide-react';
 import BootSequence from './ian/BootSequence';
 import ChatInterface, { type ChatMessage } from './ian/ChatInterface';
 import BrainMap from './ian/BrainMap';
 import EmotionDashboard from './ian/EmotionDashboard';
 import UserSwitcher from './ian/UserSwitcher';
 import SettingsPanel from './ian/SettingsPanel';
+import DevDataPanel from './ian/DevDataPanel';
 import PasswordPrompt from './ian/PasswordPrompt';
 import {
   type IanContext,
@@ -46,6 +47,7 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [accent, setAccent] = useState<AccentColor>('cyan');
   const [passwordPrompt, setPasswordPrompt] = useState<{ username: string; isDev: boolean } | null>(null);
+  const [showDevData, setShowDevData] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -225,6 +227,16 @@ export default function App() {
         rerender();
       } else {
         addMessage('system', 'ACCESS DENIED — incorrect dev password', 'system');
+      }
+      return;
+    }
+
+    // Dev data editor command
+    if (msg === 'dev data' || msg === 'edit data') {
+      if (!ctxRef.current.devMode) {
+        addMessage('system', 'ACCESS DENIED — dev mode required. Type "dev mode" to authenticate.', 'system');
+      } else {
+        setShowDevData(true);
       }
       return;
     }
@@ -415,6 +427,16 @@ export default function App() {
             <Settings size={14} style={{ color: accentMain }} />
           </button>
 
+          {/* Dev data button — only in dev mode */}
+          {ctxRef.current.devMode && (
+            <button
+              onClick={() => setShowDevData(true)}
+              className="p-1.5 rounded border border-amber/40 transition-all hover:bg-amber/10 animate-pulse-glow"
+              title="Dev Data Editor"
+            >
+              <Terminal size={14} className="text-amber" />
+            </button>
+          )}
           {/* IAN logo */}
           <div className="flex items-center gap-2 ml-2">
             <div className={`w-8 h-8 border-2 rounded-sm flex items-center justify-center relative`} style={{ borderColor: accentMain }}>
@@ -557,6 +579,14 @@ export default function App() {
           accent={accent}
           onAccentChange={(c) => { setAccent(c); rerender(); }}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+      {showDevData && ctxRef.current.devMode && (
+        <DevDataPanel
+          ctx={ctxRef.current}
+          accent={accent}
+          onUpdate={(newCtx) => { ctxRef.current = newCtx; rerender(); }}
+          onClose={() => setShowDevData(false)}
         />
       )}
       {passwordPrompt && (
