@@ -69,7 +69,7 @@ export default function UserSwitcher({ users, currentUser, accent, onSwitch, onC
                       {isProtected && <Lock size={11} className="text-amber" />}
                     </div>
                     <div className="font-mono text-[9px] text-faint">
-                      {Object.keys(users[name].learned_topics).length} learned{isProtected ? ' · protected' : ''}
+                      {Object.keys(users[name].learned_topics).length} learned · {users[name].session_count} sessions{isProtected ? ' · protected' : ''}
                     </div>
                   </div>
                 </div>

@@ -37,6 +37,10 @@ export interface UserProfile {
   dislikes: string[];
   mood_history: string[];
   learned_topics: LearnedTopics;
+  session_count: number;
+  message_count: number;
+  first_seen: string;
+  last_seen: string;
 }
 
 export interface UsersMap {
@@ -774,6 +778,10 @@ export const DEFAULT_USERS: UsersMap = {
     dislikes: [],
     mood_history: ['neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral'],
     learned_topics: {},
+    session_count: 0,
+    message_count: 0,
+    first_seen: new Date().toISOString(),
+    last_seen: new Date().toISOString(),
   },
   Kashi: {
     name: 'Kashi',
@@ -781,6 +789,10 @@ export const DEFAULT_USERS: UsersMap = {
     dislikes: ['adrian', 'most fruits'],
     mood_history: ['neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral'],
     learned_topics: { clanker: 'it is an insult to AI, but I am not a clanker' },
+    session_count: 0,
+    message_count: 0,
+    first_seen: new Date().toISOString(),
+    last_seen: new Date().toISOString(),
   },
 };
 
@@ -790,6 +802,7 @@ export const PROTECTED_USERS: string[] = ['Kashi'];
 
 export function createUser(users: UsersMap, username: string): UsersMap {
   if (username in users) return users;
+  const now = new Date().toISOString();
   return {
     ...users,
     [username]: {
@@ -798,6 +811,10 @@ export function createUser(users: UsersMap, username: string): UsersMap {
       dislikes: [],
       mood_history: ['neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral'],
       learned_topics: {},
+      session_count: 0,
+      message_count: 0,
+      first_seen: now,
+      last_seen: now,
     },
   };
 }
@@ -805,11 +822,35 @@ export function createUser(users: UsersMap, username: string): UsersMap {
 export function switchUser(ctx: IanContext, username: string): IanContext {
   const profile = ctx.users[username];
   if (!profile) return ctx;
+  const now = new Date().toISOString();
+  const updatedProfile = { ...profile, session_count: profile.session_count + 1, last_seen: now };
   return {
     ...ctx,
     currentUser: username,
     learnedTopics: profile.learned_topics,
     contextBuffer: [],
     lastQuestion: null,
+    users: { ...ctx.users, [username]: updatedProfile },
   };
+}
+
+export function bumpMessageStats(ctx: IanContext): IanContext {
+  const profile = ctx.users[ctx.currentUser];
+  if (!profile) return ctx;
+  const updated = { ...profile, message_count: profile.message_count + 1, last_seen: new Date().toISOString() };
+  return { ...ctx, users: { ...ctx.users, [ctx.currentUser]: updated } };
+}
+
+export function formatUserStats(profile: UserProfile): string {
+  const first = profile.first_seen ? profile.first_seen.slice(0, 10) : 'unknown';
+  const last = profile.last_seen ? profile.last_seen.slice(0, 10) : 'unknown';
+  return [
+    `Name: ${profile.name}`,
+    `Sessions: ${profile.session_count}`,
+    `Messages sent: ${profile.message_count}`,
+    `Topics learned: ${Object.keys(profile.learned_topics).length}`,
+    `Likes: ${profile.likes.length} | Dislikes: ${profile.dislikes.length}`,
+    `First seen: ${first}`,
+    `Last seen: ${last}`,
+  ].join('\n');
 }

@@ -20,6 +20,8 @@ import {
   maybeRecallSomething,
   createUser,
   switchUser,
+  bumpMessageStats,
+  formatUserStats,
   ACCENT_COLORS,
   KASHI_PASSWORD,
   DEV_PASSWORD,
@@ -73,6 +75,19 @@ export default function App() {
 
   const [, forceUpdate] = useState(0);
   const rerender = () => forceUpdate((n) => n + 1);
+
+  useEffect(() => {
+    const u = ctxRef.current.currentUser;
+    const profile = ctxRef.current.users[u];
+    if (profile) {
+      const now = new Date().toISOString();
+      ctxRef.current.users = {
+        ...ctxRef.current.users,
+        [u]: { ...profile, session_count: profile.session_count + 1, last_seen: now },
+      };
+      rerender();
+    }
+  }, []);
 
   const msgId = useRef(0);
   const makeId = () => `msg-${msgId.current++}`;
@@ -268,6 +283,13 @@ export default function App() {
       addMessage('ian', `Learned topics: ${topics.join(', ') || 'none yet'}`, 'normal');
       return;
     }
+    if (msg === 'stats' || msg === 'my stats') {
+      const profile = ctxRef.current.users[ctxRef.current.currentUser];
+      if (profile) {
+        addMessage('ian', formatUserStats(profile), 'system');
+      }
+      return;
+    }
     if (msg === 'show emotion') {
       setView('emotion');
       addMessage('system', 'Switching to emotion dashboard...', 'system');
@@ -311,7 +333,7 @@ export default function App() {
     const delay = 400 + Math.random() * 600;
     setTimeout(() => {
       const { response, newCtx } = processMessage(ctxRef.current, raw);
-      ctxRef.current = newCtx;
+      ctxRef.current = bumpMessageStats(newCtx);
       addMessage('ian', response.text, response.type);
       logMemory(ctxRef.current.currentUser, raw, response.text);
       addToContext(raw, response.text);

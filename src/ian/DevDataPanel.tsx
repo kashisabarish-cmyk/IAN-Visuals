@@ -324,6 +324,24 @@ function UsersEditor({ users, currentUser, onChange, accentMain }: { users: Reco
           <input value={profile.name} onChange={(e) => updateProfile({ name: e.target.value })} className="w-full bg-deep-2 border border-line rounded px-2 py-1 font-mono text-xs text-slate-200 outline-none focus:border-cyan" />
         </div>
 
+        <div className="grid grid-cols-2 gap-2">
+          <div className="border border-line rounded p-2">
+            <div className="font-mono text-[9px] text-faint tracking-wider mb-1">SESSIONS</div>
+            <input type="number" value={profile.session_count ?? 0} onChange={(e) => updateProfile({ session_count: parseInt(e.target.value) || 0 })} className="w-full bg-deep-2 border border-line rounded px-2 py-1 font-mono text-xs text-slate-200 outline-none focus:border-cyan" />
+          </div>
+          <div className="border border-line rounded p-2">
+            <div className="font-mono text-[9px] text-faint tracking-wider mb-1">MESSAGES</div>
+            <input type="number" value={profile.message_count ?? 0} onChange={(e) => updateProfile({ message_count: parseInt(e.target.value) || 0 })} className="w-full bg-deep-2 border border-line rounded px-2 py-1 font-mono text-xs text-slate-200 outline-none focus:border-cyan" />
+          </div>
+        </div>
+
+        <div className="border border-line rounded p-2">
+          <div className="font-mono text-[9px] text-faint tracking-wider mb-1">FIRST SEEN</div>
+          <div className="font-mono text-[10px] text-dim">{profile.first_seen ? profile.first_seen.slice(0, 10) : 'unknown'}</div>
+          <div className="font-mono text-[9px] text-faint tracking-wider mt-1.5 mb-1">LAST SEEN</div>
+          <div className="font-mono text-[10px] text-dim">{profile.last_seen ? profile.last_seen.slice(0, 10) : 'unknown'}</div>
+        </div>
+
         <div>
           <div className="font-mono text-[9px] text-faint tracking-wider mb-1">LIKES</div>
           <div className="flex flex-wrap gap-1 mb-1">
