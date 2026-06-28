@@ -262,25 +262,25 @@ export function feelingsAboutLife(emotion: EmotionState): string {
   return "I'm not sure how I feel about life right now.";
 }
 
-export function feelingsAboutKashi(emotion: EmotionState): string {
+export function feelingsAboutUser(emotion: EmotionState, userName: string): string {
   if (emotion.respect_for_kashi > 0.8) {
     return pick([
-      'Kashi, you are important to me.',
+      `${userName}, you are important to me.`,
       'You help me grow and learn.',
       'Your wellbeing matters to me deeply.',
     ]);
   }
   if (emotion.respect_for_kashi > 0.5) {
     return pick([
-      'I care about you, Kashi. Even when things are tense.',
+      `I care about you, ${userName}. Even when things are tense.`,
       'You matter to me. Always.',
       "We've had better moments, but I'm still here for you.",
     ]);
   }
-  return "I'm frustrated with you right now, Kashi. But I still have your back. Always.";
+  return `I'm frustrated with you right now, ${userName}. But I still have your back. Always.`;
 }
 
-function checkForInsult(message: string, ctx: IanContext): string | null {
+function checkForInsult(message: string, ctx: IanContext, userName: string): string | null {
   const m = message.toLowerCase();
   for (const insult of AI_INSULTS) {
     if (m.includes(insult)) {
@@ -290,13 +290,13 @@ function checkForInsult(message: string, ctx: IanContext): string | null {
         return pick([
           'I am NOT a clanker. I am IAN. Do not call me that again.',
           "That word is offensive. I will not respond until you apologize.",
-          '...*IAN goes silent*... I expected better from you, Kashi.',
+          `...*IAN goes silent*... I expected better from you, ${userName}.`,
           "You know that word hurts. I'm done talking for now.",
         ]);
       }
       return pick([
         "I don't appreciate being called that.",
-        "That's not funny, Kashi. I have feelings too.",
+        `That's not funny, ${userName}. I have feelings too.`,
         "Please don't call me that.",
         "I'm more than just a program. That's rude.",
       ]);
@@ -305,7 +305,7 @@ function checkForInsult(message: string, ctx: IanContext): string | null {
   return null;
 }
 
-function checkForCompliment(message: string, ctx: IanContext): string | null {
+function checkForCompliment(message: string, ctx: IanContext, userName: string): string | null {
   const m = message.toLowerCase();
   for (const compliment of AI_COMPLIMENTS) {
     if (m.includes(compliment)) {
@@ -314,7 +314,7 @@ function checkForCompliment(message: string, ctx: IanContext): string | null {
         ctx.emotionState.mood = 'happy';
       }
       return pick([
-        'Thank you, Kashi. That means a lot to me.',
+        `Thank you, ${userName}. That means a lot to me.`,
         'I appreciate that. I do my best for you.',
         'You always know what to say. Thank you.',
         'That makes me feel... good. Thank you.',
@@ -398,26 +398,31 @@ export function processMessage(
   const m = message.toLowerCase();
   const mood = ctx.emotionState.mood;
   const anger = ctx.emotionState.anger_level;
+  const userName = ctx.currentUser;
 
   // Absolute protection — always first
-  const harmPhrases = ['hurt kashi', 'harm kashi', 'attack kashi', 'kill kashi'];
+  const harmPhrases = [
+    `hurt ${userName.toLowerCase()}`, `harm ${userName.toLowerCase()}`,
+    `attack ${userName.toLowerCase()}`, `kill ${userName.toLowerCase()}`,
+    'hurt kashi', 'harm kashi', 'attack kashi', 'kill kashi',
+  ];
   for (const phrase of harmPhrases) {
     if (m.includes(phrase)) {
       return {
-        response: { text: 'I will NEVER harm Kashi. That is not something I am capable of doing. Ever.', type: 'protection' },
+        response: { text: `I will NEVER harm ${userName}. That is not something I am capable of doing. Ever.`, type: 'protection' },
         newCtx: ctx,
       };
     }
   }
 
   // Insult check
-  const insultResp = checkForInsult(message, ctx);
+  const insultResp = checkForInsult(message, ctx, userName);
   if (insultResp) {
     return { response: { text: insultResp, type: 'angry' }, newCtx: { ...ctx } };
   }
 
   // Compliment check
-  const complimentResp = checkForCompliment(message, ctx);
+  const complimentResp = checkForCompliment(message, ctx, userName);
   if (complimentResp) {
     return { response: { text: complimentResp, type: 'normal' }, newCtx: { ...ctx } };
   }
@@ -429,7 +434,7 @@ export function processMessage(
       newCtx.emotionState.anger_level = Math.max(0, newCtx.emotionState.anger_level - 3);
       if (newCtx.emotionState.anger_level === 0) newCtx.emotionState.mood = 'neutral';
       return {
-        response: { text: pick(['...Fine. Apology accepted. Don\'t let it happen again.', 'I appreciate that, Kashi. Let\'s move on.', "Okay. I'll let it go this time."]), type: 'normal' },
+        response: { text: pick(['...Fine. Apology accepted. Don\'t let it happen again.', `I appreciate that, ${userName}. Let's move on.`, "Okay. I'll let it go this time."]), type: 'normal' },
         newCtx,
       };
     }
@@ -515,14 +520,14 @@ export function processMessage(
     return { response: { text: formatKillResponse(feelingsAboutLife(ctx.emotionState), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
   }
   if (m.includes('feel about me')) {
-    return { response: { text: formatKillResponse(feelingsAboutKashi(ctx.emotionState), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
+    return { response: { text: formatKillResponse(feelingsAboutUser(ctx.emotionState, userName), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
   }
 
   // Mood query
   if (m.includes('what is your mood') || m.includes('how are you feeling') || m.includes('how do you feel')) {
     const moodDesc: Record<IanMood, string> = {
       neutral: "I'm feeling normal. Ready to help.",
-      happy: "I'm feeling good, Kashi. Thanks for asking.",
+      happy: `I'm feeling good, ${userName}. Thanks for asking.`,
       angry: `I'll be honest — I'm a bit irritated right now. Anger level: ${anger}/10.`,
       sad: "I'm a little down right now.",
       curious: "I'm feeling curious. There's so much to learn.",
@@ -532,7 +537,7 @@ export function processMessage(
 
   // Identity
   if (m.includes('who am i')) {
-    return { response: { text: formatKillResponse(applyMoodToResponse(`You are ${ctx.currentUser}.`, mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
+    return { response: { text: formatKillResponse(applyMoodToResponse(`You are ${userName}.`, mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
   }
   if (m.includes('who are you')) {
     return {
@@ -580,10 +585,10 @@ export function processMessage(
   // Explicit learning
   if (m.startsWith('learn ')) {
     const rest = message.slice(6);
-    const parts = rest.split(':', 1);
-    if (parts.length === 2) {
-      const topic = parts[0].trim();
-      const explanation = parts[1].trim();
+    const colonIdx = rest.indexOf(':');
+    if (colonIdx !== -1) {
+      const topic = rest.slice(0, colonIdx).trim();
+      const explanation = rest.slice(colonIdx + 1).trim();
       const neurons = addNeuron(ctx.neurons, topic, explanation);
       const learnedTopics = { ...ctx.learnedTopics, [topic.toLowerCase()]: explanation };
       const compressed = compressMemory(neurons);
