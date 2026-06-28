@@ -286,7 +286,9 @@ export default function App() {
     if (msg === 'stats' || msg === 'my stats') {
       const profile = ctxRef.current.users[ctxRef.current.currentUser];
       if (profile) {
-        addMessage('ian', formatUserStats(profile), 'system');
+        addMessage('system', `=== USER STATS: ${profile.name} ===\n${formatUserStats(profile)}`, 'system');
+      } else {
+        addMessage('system', 'No profile found for current user.', 'system');
       }
       return;
     }
@@ -536,6 +538,7 @@ export default function App() {
                 killMode={killMode}
                 accent={accent}
                 pendingNeuron={ctxRef.current.pendingNeuron}
+                currentUser={ctxRef.current.currentUser}
                 onSend={handleSend}
                 onNeuronApprove={handleNeuronApprove}
                 thinking={thinking}
@@ -545,7 +548,7 @@ export default function App() {
               <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} accentColor={accentMain} accentDim={accentDim} accentGlow={accentGlow} />
             </div>
             <div className={`h-full lg:hidden ${view === 'emotion' ? 'block' : 'hidden'}`}>
-              <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} />
+              <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} currentUser={ctxRef.current.currentUser} />
             </div>
           </div>
         </main>
