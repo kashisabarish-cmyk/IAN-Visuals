@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { X, Database, Plus, Trash2, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react';
 import type { IanContext, Neuron, EmotionState, UserProfile, AccentColor } from './engine';
-import { ACCENT_COLORS, DEFAULT_EMOTION, DEFAULT_NEURONS } from './engine';
+import { ACCENT_COLORS, DEFAULT_EMOTION, DEFAULT_NEURONS, PROTECTED_USERS } from './engine';
 
 interface Props {
   ctx: IanContext;
@@ -21,10 +21,12 @@ export default function DevDataPanel({ ctx, accent, onUpdate, onClose }: Props) 
 
   const updateNeurons = (neurons: Neuron[]) => onUpdate({ ...ctx, neurons });
   const updateLearned = (learnedTopics: Record<string, string>) => {
-    onUpdate({ ...ctx, learnedTopics });
+    const users = { ...ctx.users };
+    users[ctx.currentUser] = { ...users[ctx.currentUser], learned_topics: learnedTopics };
+    onUpdate({ ...ctx, learnedTopics, users });
   };
   const updateEmotion = (emotionState: EmotionState) => onUpdate({ ...ctx, emotionState });
-
+  const updateUsers = (users: Record<string, UserProfile>) => onUpdate({ ...ctx, users });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onClick={onClose}>
@@ -56,6 +58,7 @@ export default function DevDataPanel({ ctx, accent, onUpdate, onClose }: Props) 
             label={`NEURONS (${ctx.neurons.length})`}
             isOpen={openSection === 'neurons'}
             onToggle={() => toggle('neurons')}
+            accentMain={accentMain}
           >
             <NeuronEditor neurons={ctx.neurons} onChange={updateNeurons} accentMain={accentMain} />
           </SectionWrapper>
@@ -65,8 +68,9 @@ export default function DevDataPanel({ ctx, accent, onUpdate, onClose }: Props) 
             label={`LEARNED TOPICS (${Object.keys(ctx.learnedTopics).length})`}
             isOpen={openSection === 'learned'}
             onToggle={() => toggle('learned')}
+            accentMain={accentMain}
           >
-            <LearnedEditor learned={ctx.learnedTopics} onChange={updateLearned} accentMain={accentMain} />
+            <LearnedEditor learned={ctx.learnedTopics} onChange={updateLearned} />
           </SectionWrapper>
 
           {/* EMOTION STATE */}
@@ -74,17 +78,19 @@ export default function DevDataPanel({ ctx, accent, onUpdate, onClose }: Props) 
             label="EMOTION STATE"
             isOpen={openSection === 'emotion'}
             onToggle={() => toggle('emotion')}
+            accentMain={accentMain}
           >
             <EmotionEditor emotion={ctx.emotionState} onChange={updateEmotion} accentMain={accentMain} />
           </SectionWrapper>
 
           {/* USERS */}
           <SectionWrapper
-            label={`USER PROFILE (${ctx.profile.display_name || ctx.currentUser})`}
+            label={`USER PROFILES (${Object.keys(ctx.users).length})`}
             isOpen={openSection === 'users'}
             onToggle={() => toggle('users')}
+            accentMain={accentMain}
           >
-            <ProfileEditor profile={ctx.profile} onChange={(profile) => onUpdate({ ...ctx, profile })} />
+            <UsersEditor users={ctx.users} currentUser={ctx.currentUser} onChange={updateUsers} accentMain={accentMain} />
           </SectionWrapper>
         </div>
 
@@ -111,10 +117,11 @@ interface SectionWrapperProps {
   label: string;
   isOpen: boolean;
   onToggle: () => void;
+  accentMain: string;
   children: React.ReactNode;
 }
 
-function SectionWrapper({ label, isOpen, onToggle, children }: SectionWrapperProps) {
+function SectionWrapper({ label, isOpen, onToggle, accentMain, children }: SectionWrapperProps) {
   return (
     <div className="border border-line rounded overflow-hidden">
       <button onClick={onToggle} className="w-full flex items-center justify-between px-3 py-2 bg-deep-2 hover:bg-panel-2 transition-colors">
@@ -196,7 +203,7 @@ function NeuronEditor({ neurons, onChange, accentMain }: { neurons: Neuron[]; on
   );
 }
 
-function LearnedEditor({ learned, onChange, accentMain }: { learned: Record<string, string>; onChange: (l: Record<string, string>) => void; accentMain: string }) {
+function LearnedEditor({ learned, onChange }: { learned: Record<string, string>; onChange: (l: Record<string, string>) => void }) {
   const [newKey, setNewKey] = useState('');
   const [newVal, setNewVal] = useState('');
   const keys = Object.keys(learned);
@@ -235,7 +242,7 @@ function LearnedEditor({ learned, onChange, accentMain }: { learned: Record<stri
 function EmotionEditor({ emotion, onChange, accentMain }: { emotion: EmotionState; onChange: (e: EmotionState) => void; accentMain: string }) {
   const sliders: { key: keyof EmotionState; label: string }[] = [
     { key: 'curiosity', label: 'CURIOSITY' },
-    { key: 'respect_for_user', label: 'RESPECT' },
+    { key: 'respect_for_kashi', label: 'RESPECT' },
     { key: 'interest_in_life', label: 'INTEREST IN LIFE' },
     { key: 'wariness', label: 'WARINESS' },
     { key: 'happiness', label: 'HAPPINESS' },
@@ -282,68 +289,104 @@ function EmotionEditor({ emotion, onChange, accentMain }: { emotion: EmotionStat
   );
 }
 
-function ProfileEditor({ profile, onChange }: { profile: UserProfile; onChange: (p: UserProfile) => void }) {
+function UsersEditor({ users, currentUser, onChange, accentMain }: { users: Record<string, UserProfile>; currentUser: string; onChange: (u: Record<string, UserProfile>) => void; accentMain: string }) {
+  const [selected, setSelected] = useState(currentUser);
+  const profile = users[selected];
   const [newLike, setNewLike] = useState('');
   const [newDislike, setNewDislike] = useState('');
 
-  const updateProfile = (patch: Partial<UserProfile>) => onChange({ ...profile, ...patch });
+  if (!profile) return <div className="font-mono text-[10px] text-faint">No profile selected.</div>;
+
+  const updateProfile = (patch: Partial<UserProfile>) => onChange({ ...users, [selected]: { ...profile, ...patch } });
 
   return (
-    <div className="border border-line rounded p-2 space-y-3">
-      <div>
-        <div className="font-mono text-[9px] text-faint tracking-wider mb-1">DISPLAY NAME</div>
-        <input value={profile.display_name} onChange={(e) => updateProfile({ display_name: e.target.value })} className="w-full bg-deep-2 border border-line rounded px-2 py-1 font-mono text-xs text-slate-200 outline-none focus:border-cyan" />
+    <>
+      <div className="flex gap-2 flex-wrap mb-2">
+        {Object.keys(users).map((name) => (
+          <button
+            key={name}
+            onClick={() => setSelected(name)}
+            className="font-mono text-[10px] px-2 py-1 rounded border transition-all"
+            style={{
+              borderColor: selected === name ? accentMain : '#1c2740',
+              background: selected === name ? accentMain + '15' : 'transparent',
+              color: selected === name ? accentMain : '#94a3b8',
+            }}
+          >
+            {name}{PROTECTED_USERS.includes(name) ? ' 🔒' : ''}
+          </button>
+        ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="border border-line rounded p-2 space-y-3">
+        <div>
+          <div className="font-mono text-[9px] text-faint tracking-wider mb-1">NAME</div>
+          <input value={profile.name} onChange={(e) => updateProfile({ name: e.target.value })} className="w-full bg-deep-2 border border-line rounded px-2 py-1 font-mono text-xs text-slate-200 outline-none focus:border-cyan" />
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="border border-line rounded p-2">
+            <div className="font-mono text-[9px] text-faint tracking-wider mb-1">SESSIONS</div>
+            <input type="number" value={profile.session_count ?? 0} onChange={(e) => updateProfile({ session_count: parseInt(e.target.value) || 0 })} className="w-full bg-deep-2 border border-line rounded px-2 py-1 font-mono text-xs text-slate-200 outline-none focus:border-cyan" />
+          </div>
+          <div className="border border-line rounded p-2">
+            <div className="font-mono text-[9px] text-faint tracking-wider mb-1">MESSAGES</div>
+            <input type="number" value={profile.message_count ?? 0} onChange={(e) => updateProfile({ message_count: parseInt(e.target.value) || 0 })} className="w-full bg-deep-2 border border-line rounded px-2 py-1 font-mono text-xs text-slate-200 outline-none focus:border-cyan" />
+          </div>
+        </div>
+
         <div className="border border-line rounded p-2">
-          <div className="font-mono text-[9px] text-faint tracking-wider mb-1">SESSIONS</div>
-          <input type="number" value={profile.session_count ?? 0} onChange={(e) => updateProfile({ session_count: parseInt(e.target.value) || 0 })} className="w-full bg-deep-2 border border-line rounded px-2 py-1 font-mono text-xs text-slate-200 outline-none focus:border-cyan" />
+          <div className="font-mono text-[9px] text-faint tracking-wider mb-1">FIRST SEEN</div>
+          <div className="font-mono text-[10px] text-dim">{profile.first_seen ? profile.first_seen.slice(0, 10) : 'unknown'}</div>
+          <div className="font-mono text-[9px] text-faint tracking-wider mt-1.5 mb-1">LAST SEEN</div>
+          <div className="font-mono text-[10px] text-dim">{profile.last_seen ? profile.last_seen.slice(0, 10) : 'unknown'}</div>
         </div>
-        <div className="border border-line rounded p-2">
-          <div className="font-mono text-[9px] text-faint tracking-wider mb-1">MESSAGES</div>
-          <input type="number" value={profile.message_count ?? 0} onChange={(e) => updateProfile({ message_count: parseInt(e.target.value) || 0 })} className="w-full bg-deep-2 border border-line rounded px-2 py-1 font-mono text-xs text-slate-200 outline-none focus:border-cyan" />
-        </div>
-      </div>
 
-      <div className="border border-line rounded p-2">
-        <div className="font-mono text-[9px] text-faint tracking-wider mb-1">FIRST SEEN</div>
-        <div className="font-mono text-[10px] text-dim">{profile.first_seen ? profile.first_seen.slice(0, 10) : 'unknown'}</div>
-        <div className="font-mono text-[9px] text-faint tracking-wider mt-1.5 mb-1">LAST SEEN</div>
-        <div className="font-mono text-[10px] text-dim">{profile.last_seen ? profile.last_seen.slice(0, 10) : 'unknown'}</div>
-      </div>
+        <div>
+          <div className="font-mono text-[9px] text-faint tracking-wider mb-1">LIKES</div>
+          <div className="flex flex-wrap gap-1 mb-1">
+            {profile.likes.map((l, i) => (
+              <span key={i} className="flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 bg-green-glow/10 text-green-glow border border-green-glow/30 rounded">
+                {l}
+                <button onClick={() => updateProfile({ likes: profile.likes.filter((_, j) => j !== i) })} className="hover:text-red-400"><X size={9} /></button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            <input value={newLike} onChange={(e) => setNewLike(e.target.value)} placeholder="add like..." onKeyDown={(e) => { if (e.key === 'Enter' && newLike.trim()) { updateProfile({ likes: [...profile.likes, newLike.trim()] }); setNewLike(''); } }} className="flex-1 bg-deep-2 border border-line rounded px-2 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan placeholder:text-faint" />
+            <button onClick={() => { if (newLike.trim()) { updateProfile({ likes: [...profile.likes, newLike.trim()] }); setNewLike(''); } }} className="font-mono text-[10px] px-2 py-1 border border-green-glow/40 text-green-glow rounded"><Plus size={11} /></button>
+          </div>
+        </div>
 
-      <div>
-        <div className="font-mono text-[9px] text-faint tracking-wider mb-1">LIKES</div>
-        <div className="flex flex-wrap gap-1 mb-1">
-          {profile.likes.map((l, i) => (
-            <span key={i} className="flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 bg-green-glow/10 text-green-glow border border-green-glow/30 rounded">
-              {l}
-              <button onClick={() => updateProfile({ likes: profile.likes.filter((_, j) => j !== i) })} className="hover:text-red-400"><X size={9} /></button>
-            </span>
-          ))}
+        <div>
+          <div className="font-mono text-[9px] text-faint tracking-wider mb-1">DISLIKES</div>
+          <div className="flex flex-wrap gap-1 mb-1">
+            {profile.dislikes.map((l, i) => (
+              <span key={i} className="flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 bg-red-glow/10 text-red-glow border border-red-glow/30 rounded">
+                {l}
+                <button onClick={() => updateProfile({ dislikes: profile.dislikes.filter((_, j) => j !== i) })} className="hover:text-red-400"><X size={9} /></button>
+              </span>
+            ))}
+          </div>
+          <div className="flex gap-1">
+            <input value={newDislike} onChange={(e) => setNewDislike(e.target.value)} placeholder="add dislike..." onKeyDown={(e) => { if (e.key === 'Enter' && newDislike.trim()) { updateProfile({ dislikes: [...profile.dislikes, newDislike.trim()] }); setNewDislike(''); } }} className="flex-1 bg-deep-2 border border-line rounded px-2 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan placeholder:text-faint" />
+            <button onClick={() => { if (newDislike.trim()) { updateProfile({ dislikes: [...profile.dislikes, newDislike.trim()] }); setNewDislike(''); } }} className="font-mono text-[10px] px-2 py-1 border border-red-glow/40 text-red-glow rounded"><Plus size={11} /></button>
+          </div>
         </div>
-        <div className="flex gap-1">
-          <input value={newLike} onChange={(e) => setNewLike(e.target.value)} placeholder="add like..." onKeyDown={(e) => { if (e.key === 'Enter' && newLike.trim()) { updateProfile({ likes: [...profile.likes, newLike.trim()] }); setNewLike(''); } }} className="flex-1 bg-deep-2 border border-line rounded px-2 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan placeholder:text-faint" />
-          <button onClick={() => { if (newLike.trim()) { updateProfile({ likes: [...profile.likes, newLike.trim()] }); setNewLike(''); } }} className="font-mono text-[10px] px-2 py-1 border border-green-glow/40 text-green-glow rounded"><Plus size={11} /></button>
-        </div>
-      </div>
 
-      <div>
-        <div className="font-mono text-[9px] text-faint tracking-wider mb-1">DISLIKES</div>
-        <div className="flex flex-wrap gap-1 mb-1">
-          {profile.dislikes.map((l, i) => (
-            <span key={i} className="flex items-center gap-1 font-mono text-[10px] px-1.5 py-0.5 bg-red-glow/10 text-red-glow border border-red-glow/30 rounded">
-              {l}
-              <button onClick={() => updateProfile({ dislikes: profile.dislikes.filter((_, j) => j !== i) })} className="hover:text-red-400"><X size={9} /></button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          <input value={newDislike} onChange={(e) => setNewDislike(e.target.value)} placeholder="add dislike..." onKeyDown={(e) => { if (e.key === 'Enter' && newDislike.trim()) { updateProfile({ dislikes: [...profile.dislikes, newDislike.trim()] }); setNewDislike(''); } }} className="flex-1 bg-deep-2 border border-line rounded px-2 py-1 font-mono text-[10px] text-slate-200 outline-none focus:border-cyan placeholder:text-faint" />
-          <button onClick={() => { if (newDislike.trim()) { updateProfile({ dislikes: [...profile.dislikes, newDislike.trim()] }); setNewDislike(''); } }} className="font-mono text-[10px] px-2 py-1 border border-red-glow/40 text-red-glow rounded"><Plus size={11} /></button>
+        <div>
+          <div className="font-mono text-[9px] text-faint tracking-wider mb-1">LEARNED TOPICS ({Object.keys(profile.learned_topics).length})</div>
+          <div className="space-y-1 max-h-32 overflow-y-auto scrollbar-thin">
+            {Object.entries(profile.learned_topics).map(([k, v]) => (
+              <div key={k} className="flex items-start gap-1">
+                <span className="font-mono text-[10px] text-slate-200 font-bold w-20 shrink-0">{k}:</span>
+                <input value={v} onChange={(e) => updateProfile({ learned_topics: { ...profile.learned_topics, [k]: e.target.value } })} className="flex-1 bg-deep-2 border border-line rounded px-1.5 py-0.5 font-mono text-[10px] text-slate-300 outline-none focus:border-cyan" />
+                <button onClick={() => { const next = { ...profile.learned_topics }; delete next[k]; updateProfile({ learned_topics: next }); }} className="text-red-glow hover:text-red-400 p-0.5"><Trash2 size={10} /></button>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

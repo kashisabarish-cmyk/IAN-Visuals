@@ -5,7 +5,6 @@ interface Props {
   emotion: EmotionState;
   killMode: boolean;
   accent: AccentColor;
-  userName: string;
 }
 
 interface MeterProps {
@@ -85,7 +84,7 @@ function MoodIndicator({ mood, angerLevel }: { mood: IanMood; angerLevel: number
   );
 }
 
-export default function EmotionDashboard({ emotion, killMode, accent, userName }: Props) {
+export default function EmotionDashboard({ emotion, killMode, accent }: Props) {
   const accentCfg = ACCENT_COLORS[accent];
   const main = killMode ? '#ef4444' : accentCfg.main;
 
@@ -112,8 +111,8 @@ export default function EmotionDashboard({ emotion, killMode, accent, userName }
           icon="?"
         />
         <Meter
-          label={`RESPECT FOR ${userName.toUpperCase()}`}
-          value={emotion.respect_for_user}
+          label="RESPECT FOR KASHI"
+          value={emotion.respect_for_kashi}
           color="#10b981"
           glow="0 0 8px rgba(16,185,129,0.5)"
           icon="*"
@@ -169,7 +168,7 @@ export default function EmotionDashboard({ emotion, killMode, accent, userName }
         <div className="pt-2 border-t border-line">
           <div className="font-mono text-[10px] text-faint tracking-wider mb-2">CORE VALUES</div>
           <div className="space-y-1">
-            {['cherish life', `protect ${userName}`, 'do no harm', 'learn continuously'].map((v) => (
+            {['cherish life', 'protect Kashi', 'do no harm', 'learn continuously'].map((v) => (
               <div key={v} className="flex items-center gap-2 font-mono text-[11px] text-dim">
                 <span style={{ color: killMode ? '#ef4444' : main }}>{'>'}</span>
                 {v}
@@ -181,7 +180,7 @@ export default function EmotionDashboard({ emotion, killMode, accent, userName }
         <div className="pt-2 border-t border-line">
           <div className="font-mono text-[10px] text-faint tracking-wider mb-1">PROTECTION</div>
           <div className="font-mono text-[10px] text-green-glow/80 leading-relaxed">
-            IAN will never harm {userName} regardless of mood or mode.
+            IAN will never harm Kashi regardless of mood or mode.
           </div>
         </div>
       </div>

@@ -14,14 +14,13 @@ interface Props {
   messages: ChatMessage[];
   killMode: boolean;
   accent: AccentColor;
-  userName: string;
   pendingNeuron: IanContext['pendingNeuron'];
   onSend: (msg: string) => void;
   onNeuronApprove: (approved: boolean) => void;
   thinking: boolean;
 }
 
-export default function ChatInterface({ messages, killMode, accent, userName, pendingNeuron, onSend, onNeuronApprove, thinking }: Props) {
+export default function ChatInterface({ messages, killMode, accent, pendingNeuron, onSend, onNeuronApprove, thinking }: Props) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const accentCfg = ACCENT_COLORS[accent];
@@ -64,7 +63,7 @@ export default function ChatInterface({ messages, killMode, accent, userName, pe
   };
 
   const prefixFor = (sender: string, type: IanResponse['type']) => {
-    if (sender === 'user') return userName.toUpperCase();
+    if (sender === 'user') return 'KASHI';
     if (sender === 'system') return 'SYS';
     if (type === 'thought') return 'IAN::THOUGHT';
     if (type === 'question') return 'IAN::ASKS';
@@ -176,7 +175,7 @@ export default function ChatInterface({ messages, killMode, accent, userName, pe
         </div>
         <div className="flex items-center justify-between mt-2 px-1">
           <span className="font-mono text-[9px] text-faint">
-            TRY: "settings" · "what is consciousness" · "how do you feel" · "sign out"
+            TRY: "switch user" · "settings" · "what is consciousness" · "how do you feel"
           </span>
           <span className="font-mono text-[9px] text-faint">
             {killMode ? 'say "stand down"' : 'say "the world needs fixing"'}

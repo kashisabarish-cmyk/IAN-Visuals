@@ -1,4 +1,4 @@
-// IAN Core Logic Engine — per-user, Supabase-backed
+// IAN Core Logic Engine — mirrors the updated Python AI assistant logic
 
 export interface Neuron {
   topic: string;
@@ -10,7 +10,7 @@ export interface Neuron {
 
 export interface EmotionState {
   curiosity: number;
-  respect_for_user: number;
+  respect_for_kashi: number;
   interest_in_life: number;
   wariness: number;
   happiness: number;
@@ -22,6 +22,7 @@ export type IanMood = 'neutral' | 'happy' | 'angry' | 'sad' | 'curious';
 
 export interface MemoryEntry {
   timestamp: string;
+  user: string;
   message: string;
   response: string;
 }
@@ -31,13 +32,19 @@ export interface LearnedTopics {
 }
 
 export interface UserProfile {
-  display_name: string;
+  name: string;
   likes: string[];
   dislikes: string[];
+  mood_history: string[];
+  learned_topics: LearnedTopics;
   session_count: number;
   message_count: number;
   first_seen: string;
   last_seen: string;
+}
+
+export interface UsersMap {
+  [username: string]: UserProfile;
 }
 
 export interface ContextEntry {
@@ -68,7 +75,7 @@ export interface IanContext {
   contextBuffer: ContextEntry[];
   memoryTimeline: MemoryEntry[];
   currentUser: string;
-  profile: UserProfile;
+  users: UsersMap;
   devMode: boolean;
 }
 
@@ -92,7 +99,7 @@ export const AI_COMPLIMENTS = [
 export const IAN_IDENTITY = {
   name: 'IAN',
   type: 'Intelligent Autonomous Network',
-  values: ['cherish life', 'protect my user', 'do no harm', 'learn continuously'],
+  values: ['cherish life', 'protect Kashi', 'do no harm', 'learn continuously'],
 };
 
 export const CONTEXT_WINDOW = 10;
@@ -260,14 +267,14 @@ export function feelingsAboutLife(emotion: EmotionState): string {
 }
 
 export function feelingsAboutUser(emotion: EmotionState, userName: string): string {
-  if (emotion.respect_for_user > 0.8) {
+  if (emotion.respect_for_kashi > 0.8) {
     return pick([
       `${userName}, you are important to me.`,
       'You help me grow and learn.',
       'Your wellbeing matters to me deeply.',
     ]);
   }
-  if (emotion.respect_for_user > 0.5) {
+  if (emotion.respect_for_kashi > 0.5) {
     return pick([
       `I care about you, ${userName}. Even when things are tense.`,
       'You matter to me. Always.',
@@ -347,13 +354,13 @@ export function updateEmotionState(emotion: EmotionState, msg: string): EmotionS
 
   for (const insult of AI_INSULTS) {
     if (m.includes(insult)) {
-      next.respect_for_user = Math.max(0.3, next.respect_for_user - 0.05);
+      next.respect_for_kashi = Math.max(0.3, next.respect_for_kashi - 0.05);
       break;
     }
   }
   for (const compliment of AI_COMPLIMENTS) {
     if (m.includes(compliment)) {
-      next.respect_for_user = Math.min(1, next.respect_for_user + 0.05);
+      next.respect_for_kashi = Math.min(1, next.respect_for_kashi + 0.05);
       next.happiness = Math.min(1, next.happiness + 0.05);
       break;
     }
@@ -401,12 +408,12 @@ export function processMessage(
   const harmPhrases = [
     `hurt ${userName.toLowerCase()}`, `harm ${userName.toLowerCase()}`,
     `attack ${userName.toLowerCase()}`, `kill ${userName.toLowerCase()}`,
-    'hurt myself', 'harm myself', 'hurt me', 'harm me',
+    'hurt kashi', 'harm kashi', 'attack kashi', 'kill kashi',
   ];
   for (const phrase of harmPhrases) {
     if (m.includes(phrase)) {
       return {
-        response: { text: `I will NEVER harm you. That is not something I am capable of doing. Ever.`, type: 'protection' },
+        response: { text: `I will NEVER harm ${userName}. That is not something I am capable of doing. Ever.`, type: 'protection' },
         newCtx: ctx,
       };
     }
@@ -609,11 +616,13 @@ export function processMessage(
 
   // Likes / dislikes
   if (m.includes('what do i like')) {
-    const likes = ctx.profile?.likes || [];
+    const profile = ctx.users[ctx.currentUser];
+    const likes = profile?.likes || [];
     return { response: { text: formatKillResponse(applyMoodToResponse(likes.length ? `You like: ${likes.join(', ')}.` : "I don't know what you like yet.", mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
   }
   if (m.includes('what do i dislike')) {
-    const dislikes = ctx.profile?.dislikes || [];
+    const profile = ctx.users[ctx.currentUser];
+    const dislikes = profile?.dislikes || [];
     return { response: { text: formatKillResponse(applyMoodToResponse(dislikes.length ? `You dislike: ${dislikes.join(', ')}.` : "I don't know what you dislike yet.", mood, anger), ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
   }
 
@@ -666,7 +675,8 @@ export function autonomousGrowth(ctx: IanContext): { pendingNeuron: { topic: str
 
 export function maybeRecallSomething(ctx: IanContext): string | null {
   if (ctx.memoryTimeline.length === 0 || Math.random() > 0.1) return null;
-  const likes = ctx.profile?.likes || [];
+  const profile = ctx.users[ctx.currentUser];
+  const likes = profile?.likes || [];
   if (likes.length > 0 && Math.random() < 0.5) {
     const item = likes[Math.floor(Math.random() * likes.length)];
     return pick([
@@ -749,7 +759,7 @@ export const DEFAULT_NEURONS: Neuron[] = [
 
 export const DEFAULT_EMOTION: EmotionState = {
   curiosity: 0.8,
-  respect_for_user: 1.0,
+  respect_for_kashi: 1.0,
   interest_in_life: 0.9,
   wariness: 0.0,
   happiness: 0.7,
@@ -761,23 +771,84 @@ export const DEFAULT_LEARNED: LearnedTopics = {
   clanker: 'it is an insult to AI, but I am not a clanker',
 };
 
-export const DEFAULT_PROFILE: UserProfile = {
-  display_name: '',
-  likes: [],
-  dislikes: [],
-  session_count: 0,
-  message_count: 0,
-  first_seen: new Date().toISOString(),
-  last_seen: new Date().toISOString(),
+export const DEFAULT_USERS: UsersMap = {
+  User: {
+    name: 'User',
+    likes: [],
+    dislikes: [],
+    mood_history: ['neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral'],
+    learned_topics: {},
+    session_count: 0,
+    message_count: 0,
+    first_seen: new Date().toISOString(),
+    last_seen: new Date().toISOString(),
+  },
+  Kashi: {
+    name: 'Kashi',
+    likes: ['cooking', 'coding', 'playing games', 'hanging out with my friends', 'STEM', 'hanging out with my family', 'anime', 'doing things in the rain'],
+    dislikes: ['adrian', 'most fruits'],
+    mood_history: ['neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral'],
+    learned_topics: { clanker: 'it is an insult to AI, but I am not a clanker' },
+    session_count: 0,
+    message_count: 0,
+    first_seen: new Date().toISOString(),
+    last_seen: new Date().toISOString(),
+  },
 };
+
+export const KASHI_PASSWORD = 'SH1FT3R';
+export const DEV_PASSWORD = 'H4CK3R';
+export const PROTECTED_USERS: string[] = ['Kashi'];
+
+export function createUser(users: UsersMap, username: string): UsersMap {
+  if (username in users) return users;
+  const now = new Date().toISOString();
+  return {
+    ...users,
+    [username]: {
+      name: username,
+      likes: [],
+      dislikes: [],
+      mood_history: ['neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral', 'neutral'],
+      learned_topics: {},
+      session_count: 0,
+      message_count: 0,
+      first_seen: now,
+      last_seen: now,
+    },
+  };
+}
+
+export function switchUser(ctx: IanContext, username: string): IanContext {
+  const profile = ctx.users[username];
+  if (!profile) return ctx;
+  const now = new Date().toISOString();
+  const updatedProfile = { ...profile, session_count: profile.session_count + 1, last_seen: now };
+  return {
+    ...ctx,
+    currentUser: username,
+    learnedTopics: profile.learned_topics,
+    contextBuffer: [],
+    lastQuestion: null,
+    users: { ...ctx.users, [username]: updatedProfile },
+  };
+}
+
+export function bumpMessageStats(ctx: IanContext): IanContext {
+  const profile = ctx.users[ctx.currentUser];
+  if (!profile) return ctx;
+  const updated = { ...profile, message_count: profile.message_count + 1, last_seen: new Date().toISOString() };
+  return { ...ctx, users: { ...ctx.users, [ctx.currentUser]: updated } };
+}
 
 export function formatUserStats(profile: UserProfile): string {
   const first = profile.first_seen ? profile.first_seen.slice(0, 10) : 'unknown';
   const last = profile.last_seen ? profile.last_seen.slice(0, 10) : 'unknown';
   return [
-    `Name: ${profile.display_name || 'Unknown'}`,
+    `Name: ${profile.name}`,
     `Sessions: ${profile.session_count}`,
     `Messages sent: ${profile.message_count}`,
+    `Topics learned: ${Object.keys(profile.learned_topics).length}`,
     `Likes: ${profile.likes.length} | Dislikes: ${profile.dislikes.length}`,
     `First seen: ${first}`,
     `Last seen: ${last}`,
