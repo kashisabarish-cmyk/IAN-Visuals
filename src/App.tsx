@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from 'react';
-import { Users, Settings, Terminal } from 'lucide-react';
+import { Users, Settings, Terminal, LogOut } from 'lucide-react';
+import { supabase } from './lib/supabase';
 import BootSequence from './ian/BootSequence';
+import AuthScreen from './ian/AuthScreen';
 import ChatInterface, { type ChatMessage } from './ian/ChatInterface';
 import BrainMap from './ian/BrainMap';
 import EmotionDashboard from './ian/EmotionDashboard';
-import UserSwitcher from './ian/UserSwitcher';
 import SettingsPanel from './ian/SettingsPanel';
 import DevDataPanel from './ian/DevDataPanel';
-import PasswordPrompt from './ian/PasswordPrompt';
 import {
   type IanContext,
-  type MemoryEntry,
   type AccentColor,
   processMessage,
   updateEmotionState,
@@ -18,43 +17,79 @@ import {
   addNeuron,
   compressMemory,
   maybeRecallSomething,
-  createUser,
-  switchUser,
-  bumpMessageStats,
   formatUserStats,
   ACCENT_COLORS,
-  KASHI_PASSWORD,
-  DEV_PASSWORD,
-  PROTECTED_USERS,
   DEFAULT_NEURONS,
   DEFAULT_EMOTION,
   DEFAULT_LEARNED,
-  DEFAULT_USERS,
+  DEFAULT_PROFILE,
   RANDOM_THOUGHTS_NEUTRAL,
   RANDOM_THOUGHTS_ANGRY,
   RANDOM_THOUGHTS_HAPPY,
   RANDOM_QUESTIONS,
 } from './ian/engine';
+import {
+  loadUserContext,
+  ensureProfile,
+  saveEmotionState,
+  saveProfile,
+  addMemory,
+  addContextEntry,
+  addNeuronToDb,
+  addLearnedTopic,
+  wipeConversation,
+  wipeAllMemory,
+} from './ian/data';
 
 type View = 'chat' | 'brain' | 'emotion';
 
 export default function App() {
+  const [authed, setAuthed] = useState(false);
+  const [authUserId, setAuthUserId] = useState<string | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const [booted, setBooted] = useState(false);
   const [view, setView] = useState<View>('chat');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [thinking, setThinking] = useState(false);
   const [confirmWipe, setConfirmWipe] = useState<null | 'conversation' | 'all'>(null);
   const [isDesktop, setIsDesktop] = useState(typeof window !== 'undefined' && window.innerWidth >= 1024);
-  const [showUserSwitcher, setShowUserSwitcher] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [accent, setAccent] = useState<AccentColor>('cyan');
-  const [passwordPrompt, setPasswordPrompt] = useState<{ username: string; isDev: boolean } | null>(null);
   const [showDevData, setShowDevData] = useState(false);
+  const [loadingCtx, setLoadingCtx] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Check existing session
+  useEffect(() => {
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        setAuthUserId(session.user.id);
+        setAuthed(true);
+      }
+      setAuthChecking(false);
+    })();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      (async () => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setAuthUserId(session.user.id);
+          setAuthed(true);
+        } else if (event === 'SIGNED_OUT') {
+          setAuthUserId(null);
+          setAuthed(false);
+          setBooted(false);
+          setMessages([]);
+        }
+      })();
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const ctxRef = useRef<IanContext>({
@@ -69,25 +104,32 @@ export default function App() {
     contextBuffer: [],
     memoryTimeline: [],
     currentUser: 'User',
-    users: DEFAULT_USERS,
+    profile: { ...DEFAULT_PROFILE },
     devMode: false,
   });
 
   const [, forceUpdate] = useState(0);
   const rerender = () => forceUpdate((n) => n + 1);
 
+  // Load user context when authed
   useEffect(() => {
-    const u = ctxRef.current.currentUser;
-    const profile = ctxRef.current.users[u];
-    if (profile) {
-      const now = new Date().toISOString();
-      ctxRef.current.users = {
-        ...ctxRef.current.users,
-        [u]: { ...profile, session_count: profile.session_count + 1, last_seen: now },
-      };
-      rerender();
-    }
-  }, []);
+    if (!authed || !authUserId) return;
+    (async () => {
+      setLoadingCtx(true);
+      try {
+        await ensureProfile(authUserId, ctxRef.current.currentUser);
+        const ctx = await loadUserContext(authUserId);
+        ctxRef.current = ctx;
+        // Bump session count
+        ctxRef.current.profile.session_count += 1;
+        ctxRef.current.profile.last_seen = new Date().toISOString();
+        await saveProfile(authUserId, ctxRef.current);
+        rerender();
+      } finally {
+        setLoadingCtx(false);
+      }
+    })();
+  }, [authed, authUserId]);
 
   const msgId = useRef(0);
   const makeId = () => `msg-${msgId.current++}`;
@@ -102,74 +144,8 @@ export default function App() {
     }]);
   };
 
-  const addToContext = (user: string, ian: string) => {
-    ctxRef.current.contextBuffer = [...ctxRef.current.contextBuffer, { user, ian }];
-    if (ctxRef.current.contextBuffer.length > 10) {
-      ctxRef.current.contextBuffer = ctxRef.current.contextBuffer.slice(-10);
-    }
-  };
-
-  const logMemory = (user: string, message: string, response: string) => {
-    const entry: MemoryEntry = {
-      timestamp: new Date().toISOString(),
-      user,
-      message,
-      response,
-    };
-    ctxRef.current.memoryTimeline = [...ctxRef.current.memoryTimeline, entry];
-  };
-
-  const doSwitchUser = (username: string) => {
-    if (username === ctxRef.current.currentUser) {
-      setShowUserSwitcher(false);
-      return;
-    }
-    ctxRef.current = switchUser(ctxRef.current, username);
-    addMessage('system', `Switched to user: ${username}`, 'system');
-    addMessage('ian', `Hello, ${username}. I am IAN. Welcome.`, 'normal');
-    setShowUserSwitcher(false);
-    rerender();
-  };
-
-  const handleSwitchUser = (username: string) => {
-    if (PROTECTED_USERS.includes(username) && username !== ctxRef.current.currentUser) {
-      setPasswordPrompt({ username, isDev: false });
-      return;
-    }
-    doSwitchUser(username);
-  };
-
-  const handleCreateUser = (username: string) => {
-    ctxRef.current.users = createUser(ctxRef.current.users, username);
-    ctxRef.current = switchUser(ctxRef.current, username);
-    addMessage('system', `New user profile created: ${username}`, 'system');
-    addMessage('ian', `Hello, ${username}. I am IAN — your Intelligent Autonomous Network. I'm here to learn and grow with you.`, 'normal');
-    setShowUserSwitcher(false);
-    rerender();
-  };
-
-  const handlePasswordSubmit = (password: string) => {
-    if (!passwordPrompt) return;
-    if (passwordPrompt.isDev) {
-      if (password === DEV_PASSWORD) {
-        ctxRef.current.devMode = true;
-        addMessage('system', 'DEV MODE ACTIVATED', 'system');
-        addMessage('ian', 'Developer mode enabled. All restrictions lifted.', 'system');
-        setPasswordPrompt(null);
-        rerender();
-      } else {
-        addMessage('system', 'ACCESS DENIED — incorrect dev password', 'system');
-        setPasswordPrompt(null);
-      }
-      return;
-    }
-    if (password === KASHI_PASSWORD) {
-      doSwitchUser(passwordPrompt.username);
-      setPasswordPrompt(null);
-    } else {
-      addMessage('system', 'ACCESS DENIED — incorrect password', 'system');
-      setPasswordPrompt(null);
-    }
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
   };
 
   const handleSend = (raw: string) => {
@@ -194,11 +170,15 @@ export default function App() {
         if (confirmWipe === 'conversation') {
           ctxRef.current.memoryTimeline = [];
           ctxRef.current.contextBuffer = [];
+          if (authUserId) wipeConversation(authUserId);
           addMessage('ian', 'Conversation memory wiped. I still know who you are.', 'wipe');
         } else {
           ctxRef.current.neurons = [];
           ctxRef.current.memoryTimeline = [];
           ctxRef.current.contextBuffer = [];
+          ctxRef.current.learnedTopics = {};
+          ctxRef.current.emotionState = { ...DEFAULT_EMOTION };
+          if (authUserId) wipeAllMemory(authUserId);
           addMessage('ian', 'Full memory wipe complete. I remember you. Everything else is gone.', 'wipe');
         }
         setConfirmWipe(null);
@@ -212,44 +192,18 @@ export default function App() {
       }
     }
 
-    // Switch user command
-    if (msg === 'switch user') {
-      setShowUserSwitcher(true);
-      return;
-    }
-    if (msg.startsWith('switch user ')) {
-      const targetName = raw.slice(12).trim();
-      if (targetName in ctxRef.current.users) {
-        handleSwitchUser(targetName);
-      } else {
-        ctxRef.current.users = createUser(ctxRef.current.users, targetName);
-        handleCreateUser(targetName);
-      }
-      return;
-    }
-
     // Dev mode command
     if (msg === 'dev mode' || msg === 'devmode') {
-      setPasswordPrompt({ username: '', isDev: true });
-      return;
-    }
-    if (msg.startsWith('dev mode ') || msg.startsWith('devmode ')) {
-      const pw = raw.split(' ').slice(2).join(' ').trim();
-      if (pw === DEV_PASSWORD) {
-        ctxRef.current.devMode = true;
-        addMessage('system', 'DEV MODE ACTIVATED', 'system');
-        addMessage('ian', 'Developer mode enabled. All restrictions lifted.', 'system');
-        rerender();
-      } else {
-        addMessage('system', 'ACCESS DENIED — incorrect dev password', 'system');
-      }
+      ctxRef.current.devMode = !ctxRef.current.devMode;
+      addMessage('system', ctxRef.current.devMode ? 'DEV MODE ACTIVATED' : 'DEV MODE DEACTIVATED', 'system');
+      rerender();
       return;
     }
 
     // Dev data editor command
     if (msg === 'dev data' || msg === 'edit data') {
       if (!ctxRef.current.devMode) {
-        addMessage('system', 'ACCESS DENIED — dev mode required. Type "dev mode" to authenticate.', 'system');
+        addMessage('system', 'ACCESS DENIED — dev mode required. Type "dev mode" to toggle.', 'system');
       } else {
         setShowDevData(true);
       }
@@ -284,10 +238,7 @@ export default function App() {
       return;
     }
     if (msg === 'stats' || msg === 'my stats') {
-      const profile = ctxRef.current.users[ctxRef.current.currentUser];
-      if (profile) {
-        addMessage('ian', formatUserStats(profile), 'system');
-      }
+      addMessage('ian', formatUserStats(ctxRef.current.profile), 'system');
       return;
     }
     if (msg === 'show emotion') {
@@ -320,6 +271,10 @@ export default function App() {
       setTimeout(() => addMessage('system', '---ALL SYSTEMS GO', 'system'), 800);
       return;
     }
+    if (msg === 'sign out' || msg === 'logout' || msg === 'log out') {
+      handleSignOut();
+      return;
+    }
     if (msg === 'exit') {
       addMessage('system', 'Goodbye. I\'ll remember everything.', 'system');
       return;
@@ -333,10 +288,24 @@ export default function App() {
     const delay = 400 + Math.random() * 600;
     setTimeout(() => {
       const { response, newCtx } = processMessage(ctxRef.current, raw);
-      ctxRef.current = bumpMessageStats(newCtx);
+      ctxRef.current = newCtx;
+      ctxRef.current.profile.message_count += 1;
+
+      // Persist changes
+      if (authUserId) {
+        saveEmotionState(authUserId, ctxRef.current);
+        saveProfile(authUserId, ctxRef.current);
+        addMemory(authUserId, raw, response.text);
+        addContextEntry(authUserId, raw, response.text);
+        // If learned something new, persist it
+        const newLearnedKeys = Object.keys(ctxRef.current.learnedTopics);
+        if (newLearnedKeys.length > 0) {
+          const lastKey = newLearnedKeys[newLearnedKeys.length - 1];
+          addLearnedTopic(authUserId, lastKey, ctxRef.current.learnedTopics[lastKey]);
+        }
+      }
+
       addMessage('ian', response.text, response.type);
-      logMemory(ctxRef.current.currentUser, raw, response.text);
-      addToContext(raw, response.text);
       setThinking(false);
       rerender();
 
@@ -388,6 +357,8 @@ export default function App() {
     if (approved) {
       ctxRef.current.neurons = addNeuron(ctxRef.current.neurons, pending.topic, pending.explanation);
       ctxRef.current.neurons = compressMemory(ctxRef.current.neurons);
+      const newNeuron = ctxRef.current.neurons[ctxRef.current.neurons.length - 1];
+      if (authUserId) addNeuronToDb(authUserId, newNeuron);
       addMessage('ian', `Added concept '${pending.topic}'.`, 'neuron-added');
     } else {
       addMessage('ian', "Understood. I won't add that concept.", 'neuron-rejected');
@@ -399,12 +370,12 @@ export default function App() {
 
   // Welcome message after boot
   useEffect(() => {
-    if (booted && messages.length === 0) {
+    if (booted && authed && messages.length === 0 && !loadingCtx) {
       addMessage('system', 'IAN ONLINE', 'system');
-      addMessage('system', "Commands: 'switch user', 'settings', 'dev mode', 'show network', 'show context', 'wipe conversation', 'exit'", 'system');
+      addMessage('system', "Commands: 'settings', 'dev mode', 'show network', 'show context', 'wipe conversation', 'sign out', 'exit'", 'system');
       addMessage('ian', `Hello, ${ctxRef.current.currentUser}. I am IAN — your Intelligent Autonomous Network. I am here to learn, grow, and assist. What shall we discover today?`, 'normal');
     }
-  }, [booted]); // eslint-disable-line
+  }, [booted, authed, loadingCtx]); // eslint-disable-line
 
   const killMode = ctxRef.current.killMode;
   const mood = ctxRef.current.emotionState.mood;
@@ -413,8 +384,31 @@ export default function App() {
   const accentGlow = killMode ? 'rgba(239,68,68,0.5)' : accentCfg.glow;
   const accentDim = killMode ? '#991b1b' : accentCfg.dim;
 
+  // Auth checking splash
+  if (authChecking) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep">
+        <div className="font-mono text-sm text-cyan animate-pulse-glow">CONNECTING TO IAN...</div>
+      </div>
+    );
+  }
+
+  // Not authed — show auth screen
+  if (!authed) {
+    return <AuthScreen accent={accent} onAuthed={() => setAuthed(true)} />;
+  }
+
+  // Loading context
+  if (loadingCtx && !booted) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-deep">
+        <div className="font-mono text-sm text-cyan animate-pulse-glow">LOADING NEURAL DATA...</div>
+      </div>
+    );
+  }
+
   if (!booted) {
-    return <BootSequence onComplete={() => setBooted(true)} />;
+    return <BootSequence userName={ctxRef.current.currentUser} onComplete={() => setBooted(true)} />;
   }
 
   return (
@@ -422,13 +416,8 @@ export default function App() {
       {/* Top status bar */}
       <header className={`flex items-center justify-between px-4 py-2 border-b ${killMode ? 'border-red-glow/30' : 'border-line'} bg-panel/80 backdrop-blur`}>
         <div className="flex items-center gap-3">
-          {/* User switcher button */}
-          <button
-            onClick={() => setShowUserSwitcher(true)}
-            className="flex items-center gap-2 px-2.5 py-1.5 rounded border transition-all hover:bg-panel-2"
-            style={{ borderColor: accentMain + '40' }}
-            title="Switch user"
-          >
+          {/* User display */}
+          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded border" style={{ borderColor: accentMain + '40' }}>
             <div
               className="w-6 h-6 rounded-full flex items-center justify-center font-mono text-[10px] font-bold"
               style={{ background: accentMain + '20', color: accentMain }}
@@ -437,7 +426,7 @@ export default function App() {
             </div>
             <span className="font-mono text-xs text-slate-200 hidden sm:inline">{ctxRef.current.currentUser}</span>
             <Users size={14} style={{ color: accentMain }} />
-          </button>
+          </div>
 
           {/* Settings button */}
           <button
@@ -459,6 +448,17 @@ export default function App() {
               <Terminal size={14} className="text-amber" />
             </button>
           )}
+
+          {/* Sign out button */}
+          <button
+            onClick={handleSignOut}
+            className="p-1.5 rounded border transition-all hover:bg-panel-2"
+            style={{ borderColor: accentMain + '30' }}
+            title="Sign out"
+          >
+            <LogOut size={14} style={{ color: accentMain }} />
+          </button>
+
           {/* IAN logo */}
           <div className="flex items-center gap-2 ml-2">
             <div className={`w-8 h-8 border-2 rounded-sm flex items-center justify-center relative`} style={{ borderColor: accentMain }}>
@@ -535,6 +535,7 @@ export default function App() {
                 messages={messages}
                 killMode={killMode}
                 accent={accent}
+                userName={ctxRef.current.currentUser}
                 pendingNeuron={ctxRef.current.pendingNeuron}
                 onSend={handleSend}
                 onNeuronApprove={handleNeuronApprove}
@@ -545,14 +546,14 @@ export default function App() {
               <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} accentColor={accentMain} accentDim={accentDim} accentGlow={accentGlow} />
             </div>
             <div className={`h-full lg:hidden ${view === 'emotion' ? 'block' : 'hidden'}`}>
-              <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} />
+              <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} userName={ctxRef.current.currentUser} />
             </div>
           </div>
         </main>
 
         {/* Right panel - Emotion Dashboard */}
         <aside className={`hidden lg:flex w-72 border-l ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50`}>
-          <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} />
+          <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} userName={ctxRef.current.currentUser} />
         </aside>
       </div>
 
@@ -586,16 +587,6 @@ export default function App() {
       )}
 
       {/* Modals */}
-      {showUserSwitcher && !passwordPrompt && (
-        <UserSwitcher
-          users={ctxRef.current.users}
-          currentUser={ctxRef.current.currentUser}
-          accent={accent}
-          onSwitch={handleSwitchUser}
-          onCreate={handleCreateUser}
-          onClose={() => setShowUserSwitcher(false)}
-        />
-      )}
       {showSettings && (
         <SettingsPanel
           accent={accent}
@@ -609,15 +600,6 @@ export default function App() {
           accent={accent}
           onUpdate={(newCtx) => { ctxRef.current = newCtx; rerender(); }}
           onClose={() => setShowDevData(false)}
-        />
-      )}
-      {passwordPrompt && (
-        <PasswordPrompt
-          username={passwordPrompt.username}
-          isDev={passwordPrompt.isDev}
-          accent={accent}
-          onSubmit={handlePasswordSubmit}
-          onClose={() => setPasswordPrompt(null)}
         />
       )}
     </div>

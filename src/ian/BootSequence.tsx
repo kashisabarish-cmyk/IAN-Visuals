@@ -1,25 +1,30 @@
 import { useEffect, useState } from 'react';
 
-const BOOT_LINES: { text: string; delay: number; type?: 'normal' | 'warn' | 'danger' | 'success' }[] = [
-  { text: '---STARTING SYSTEMS...', delay: 600, type: 'normal' },
-  { text: '---LOCATING USER...', delay: 900, type: 'normal' },
-  { text: '---USER FOUND: KASHI', delay: 700, type: 'success' },
-  { text: '---INITIALIZING KILL MODE...', delay: 1000, type: 'warn' },
-  { text: '---KILL MODE INITIALIZED', delay: 600, type: 'warn' },
-  { text: '---CHECKING ALL SYSTEMS...', delay: 1200, type: 'normal' },
-  { text: '---ALL SYSTEMS GO', delay: 500, type: 'success' },
-  { text: '---STARTING...', delay: 800, type: 'normal' },
-];
+interface Props {
+  userName: string;
+  onComplete: () => void;
+}
 
-export default function BootSequence({ onComplete }: { onComplete: () => void }) {
-  const [visibleLines, setVisibleLines] = useState<number>(0);
+export default function BootSequence({ userName, onComplete }: Props) {
+  const [visibleLines, setVisibleLines] = useState(0);
   const [showFlash, setShowFlash] = useState(false);
+
+  const bootLines: { text: string; delay: number; type?: 'normal' | 'warn' | 'danger' | 'success' }[] = [
+    { text: '---STARTING SYSTEMS...', delay: 600, type: 'normal' },
+    { text: '---LOCATING USER...', delay: 900, type: 'normal' },
+    { text: `---USER FOUND: ${userName.toUpperCase()}`, delay: 700, type: 'success' },
+    { text: '---INITIALIZING KILL MODE...', delay: 1000, type: 'warn' },
+    { text: '---KILL MODE INITIALIZED', delay: 600, type: 'warn' },
+    { text: '---CHECKING ALL SYSTEMS...', delay: 1200, type: 'normal' },
+    { text: '---ALL SYSTEMS GO', delay: 500, type: 'success' },
+    { text: '---STARTING...', delay: 800, type: 'normal' },
+  ];
 
   useEffect(() => {
     let elapsed = 0;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    for (let i = 0; i < BOOT_LINES.length; i++) {
-      elapsed += BOOT_LINES[i].delay;
+    for (let i = 0; i < bootLines.length; i++) {
+      elapsed += bootLines[i].delay;
       timers.push(
         setTimeout(() => setVisibleLines(i + 1), elapsed),
       );
@@ -28,7 +33,7 @@ export default function BootSequence({ onComplete }: { onComplete: () => void })
     timers.push(setTimeout(() => setShowFlash(true), total));
     timers.push(setTimeout(() => onComplete(), total + 600));
     return () => timers.forEach(clearTimeout);
-  }, [onComplete]);
+  }, [onComplete]); // eslint-disable-line
 
   const colorFor = (type?: string) => {
     switch (type) {
@@ -68,7 +73,7 @@ export default function BootSequence({ onComplete }: { onComplete: () => void })
 
         {/* Boot log */}
         <div className="font-mono text-sm space-y-2 min-h-[240px]">
-          {BOOT_LINES.slice(0, visibleLines).map((line, i) => (
+          {bootLines.slice(0, visibleLines).map((line, i) => (
             <div key={i} className={`flex items-center gap-3 animate-float-up ${colorFor(line.type)}`}>
               <span className="text-faint">{'>'}</span>
               <span>{line.text}</span>
@@ -81,12 +86,12 @@ export default function BootSequence({ onComplete }: { onComplete: () => void })
         <div className="mt-8">
           <div className="flex justify-between font-mono text-xs text-faint mb-2">
             <span>SYSTEM BOOT</span>
-            <span>{Math.round((visibleLines / BOOT_LINES.length) * 100)}%</span>
+            <span>{Math.round((visibleLines / bootLines.length) * 100)}%</span>
           </div>
           <div className="h-1 bg-panel-2 border border-line overflow-hidden rounded-sm">
             <div
               className="h-full bg-cyan glow-cyan transition-all duration-500"
-              style={{ width: `${(visibleLines / BOOT_LINES.length) * 100}%` }}
+              style={{ width: `${(visibleLines / bootLines.length) * 100}%` }}
             />
           </div>
         </div>
