@@ -539,6 +539,7 @@ export default function App() {
                 onSend={handleSend}
                 onNeuronApprove={handleNeuronApprove}
                 thinking={thinking}
+                currentUser={ctxRef.current.currentUser}
               />
             </div>
             <div className={`h-full lg:hidden ${view === 'brain' ? 'block' : 'hidden'}`}>

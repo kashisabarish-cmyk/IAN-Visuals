@@ -18,9 +18,10 @@ interface Props {
   onSend: (msg: string) => void;
   onNeuronApprove: (approved: boolean) => void;
   thinking: boolean;
+  currentUser: string;
 }
 
-export default function ChatInterface({ messages, killMode, accent, pendingNeuron, onSend, onNeuronApprove, thinking }: Props) {
+export default function ChatInterface({ messages, killMode, accent, pendingNeuron, onSend, onNeuronApprove, thinking, currentUser }: Props) {
   const [input, setInput] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const accentCfg = ACCENT_COLORS[accent];
@@ -63,7 +64,7 @@ export default function ChatInterface({ messages, killMode, accent, pendingNeuro
   };
 
   const prefixFor = (sender: string, type: IanResponse['type']) => {
-    if (sender === 'user') return 'KASHI';
+    if (sender === 'user') return currentUser.toUpperCase();
     if (sender === 'system') return 'SYS';
     if (type === 'thought') return 'IAN::THOUGHT';
     if (type === 'question') return 'IAN::ASKS';
