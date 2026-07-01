@@ -379,6 +379,173 @@ export function updateEmotionState(emotion: EmotionState, msg: string): EmotionS
   return next;
 }
 
+export function solveMath(message: string): string | null {
+  const m = message.toLowerCase().trim();
+
+  // Percentages: "20% of 50"
+  const pctMatch = m.match(/(\d+\.?\d*)\s*%\s*of\s*(\d+\.?\d*)/);
+  if (pctMatch) {
+    const pct = parseFloat(pctMatch[1]);
+    const total = parseFloat(pctMatch[2]);
+    return `${pct}% of ${total} is ${(pct / 100) * total}.`;
+  }
+
+  // Square root
+  const sqrtMatch = m.match(/square\s*root\s*of\s*(\d+\.?\d*)/);
+  if (sqrtMatch) {
+    const num = parseFloat(sqrtMatch[1]);
+    return `The square root of ${num} is ${Math.sqrt(num)}.`;
+  }
+
+  // Power
+  const powerMatch = m.match(/(\d+\.?\d*)\s*to\s*the\s*power\s*of\s*(\d+\.?\d*)/);
+  if (powerMatch) {
+    const base = parseFloat(powerMatch[1]);
+    const exp = parseFloat(powerMatch[2]);
+    return `${base} to the power of ${exp} is ${Math.pow(base, exp)}.`;
+  }
+
+  // Squared
+  const squaredMatch = m.match(/(\d+\.?\d*)\s*squared/);
+  if (squaredMatch) {
+    const num = parseFloat(squaredMatch[1]);
+    return `${num} squared is ${num ** 2}.`;
+  }
+
+  // Cubed
+  const cubedMatch = m.match(/(\d+\.?\d*)\s*cubed/);
+  if (cubedMatch) {
+    const num = parseFloat(cubedMatch[1]);
+    return `${num} cubed is ${num ** 3}.`;
+  }
+
+  // Area of circle
+  const areaCircle = m.match(/area of a circle with radius\s*(\d+\.?\d*)/);
+  if (areaCircle) {
+    const r = parseFloat(areaCircle[1]);
+    return `Area of a circle with radius ${r} is ${+(Math.PI * r ** 2).toFixed(4)} (π × r²).`;
+  }
+
+  // Area of rectangle
+  const areaRect = m.match(/area of a rectangle with length\s*(\d+\.?\d*)\s*and width\s*(\d+\.?\d*)/);
+  if (areaRect) {
+    const l = parseFloat(areaRect[1]), w = parseFloat(areaRect[2]);
+    return `Area of a rectangle with length ${l} and width ${w} is ${l * w}.`;
+  }
+
+  // Area of triangle
+  const areaTri = m.match(/area of a triangle with base\s*(\d+\.?\d*)\s*and height\s*(\d+\.?\d*)/);
+  if (areaTri) {
+    const b = parseFloat(areaTri[1]), h = parseFloat(areaTri[2]);
+    return `Area of a triangle with base ${b} and height ${h} is ${0.5 * b * h}.`;
+  }
+
+  // Pythagorean theorem
+  const pyth = m.match(/pythagorean.*a\s*(\d+\.?\d*).*b\s*(\d+\.?\d*)/);
+  if (pyth) {
+    const a = parseFloat(pyth[1]), b = parseFloat(pyth[2]);
+    return `With a=${a} and b=${b}, c = √(a²+b²) = ${+(Math.sqrt(a ** 2 + b ** 2)).toFixed(4)}.`;
+  }
+
+  // Average / mean
+  const avgMatch = m.match(/(average|mean) of ([\d\s,]+)/);
+  if (avgMatch) {
+    const nums = avgMatch[2].match(/\d+\.?\d*/g)?.map(Number) || [];
+    if (nums.length > 0) {
+      const avg = nums.reduce((a, b) => a + b, 0) / nums.length;
+      return `The average of [${nums.join(', ')}] is ${+avg.toFixed(4)}.`;
+    }
+  }
+
+  // Perimeter of rectangle
+  const perimRect = m.match(/perimeter of a rectangle with length\s*(\d+\.?\d*)\s*and width\s*(\d+\.?\d*)/);
+  if (perimRect) {
+    const l = parseFloat(perimRect[1]), w = parseFloat(perimRect[2]);
+    return `Perimeter of a rectangle with length ${l} and width ${w} is ${2 * (l + w)}.`;
+  }
+
+  // Circumference
+  const circMatch = m.match(/circumference of a circle with radius\s*(\d+\.?\d*)/);
+  if (circMatch) {
+    const r = parseFloat(circMatch[1]);
+    return `Circumference of a circle with radius ${r} is ${+(2 * Math.PI * r).toFixed(4)} (2πr).`;
+  }
+
+  // Volume of cube
+  const volCube = m.match(/volume of a cube with side\s*(\d+\.?\d*)/);
+  if (volCube) {
+    const s = parseFloat(volCube[1]);
+    return `Volume of a cube with side ${s} is ${s ** 3}.`;
+  }
+
+  // Volume of sphere
+  const volSphere = m.match(/volume of a sphere with radius\s*(\d+\.?\d*)/);
+  if (volSphere) {
+    const r = parseFloat(volSphere[1]);
+    return `Volume of a sphere with radius ${r} is ${+((4 / 3) * Math.PI * r ** 3).toFixed(4)} (4/3 × π × r³).`;
+  }
+
+  // Volume of cylinder
+  const volCyl = m.match(/volume of a cylinder with radius\s*(\d+\.?\d*)\s*and height\s*(\d+\.?\d*)/);
+  if (volCyl) {
+    const r = parseFloat(volCyl[1]), h = parseFloat(volCyl[2]);
+    return `Volume of a cylinder with radius ${r} and height ${h} is ${+(Math.PI * r ** 2 * h).toFixed(4)}.`;
+  }
+
+  // Slope
+  const slopeMatch = m.match(/slope.*rise\s*(\d+\.?\d*).*run\s*(\d+\.?\d*)/);
+  if (slopeMatch) {
+    const rise = parseFloat(slopeMatch[1]), run = parseFloat(slopeMatch[2]);
+    if (run === 0) return "Slope is undefined — you can't divide by zero.";
+    return `Slope (rise/run) = ${rise}/${run} = ${+(rise / run).toFixed(4)}.`;
+  }
+
+  // Simple interest
+  const siMatch = m.match(/simple interest.*principal\s*(\d+\.?\d*).*rate\s*(\d+\.?\d*).*time\s*(\d+\.?\d*)/);
+  if (siMatch) {
+    const p = parseFloat(siMatch[1]), r = parseFloat(siMatch[2]), t = parseFloat(siMatch[3]);
+    const interest = (p * r * t) / 100;
+    return `Simple interest = P×R×T/100 = ${p}×${r}×${t}/100 = ${interest}. Total = ${p + interest}.`;
+  }
+
+  // Basic arithmetic expressions
+  if (/[+\-*/%^]/.test(message) || m.includes('calculate') || m.includes('what is') || m.includes("what's")) {
+    let expr = message;
+    for (const word of ["what is", "what's", "calculate", "solve", "whats", "="]) {
+      expr = expr.replace(new RegExp(word, 'gi'), '').trim();
+    }
+    expr = expr.replace(/\^/g, '**');
+    // Only evaluate if it looks like a numeric expression
+    if (/^[\d\s+\-*/.()%]+$/.test(expr.trim())) {
+      try {
+        // eslint-disable-next-line no-new-func
+        const result = new Function(`"use strict"; return (${expr.trim()})`)();
+        if (typeof result === 'number' && isFinite(result)) {
+          return `The answer is ${result}.`;
+        }
+      } catch {
+        // not a valid expression
+      }
+    }
+  }
+
+  return null;
+}
+
+export function manualCombineNeurons(neurons: Neuron[], topic1: string, topic2: string): { result: string; neurons: Neuron[] } {
+  const n1 = neurons.find((n) => n.topic === topic1.toLowerCase());
+  const n2 = neurons.find((n) => n.topic === topic2.toLowerCase());
+  if (!n1) return { result: `I don't know anything about '${topic1}' yet.`, neurons };
+  if (!n2) return { result: `I don't know anything about '${topic2}' yet.`, neurons };
+  const newTopic = `${n1.topic}_${n2.topic}`;
+  if (neurons.some((n) => n.topic === newTopic)) {
+    return { result: `I already have a concept called '${newTopic}'.`, neurons };
+  }
+  const explanation = `The relationship between ${n1.topic} (${n1.explanation}) and ${n2.topic} (${n2.explanation}).`;
+  const updated = addNeuron(neurons, newTopic, explanation);
+  return { result: `Combined '${topic1}' and '${topic2}' into new concept '${newTopic}'.`, neurons: updated };
+}
+
 function analyzeUnknown(message: string, mood: IanMood): string | null {
   const m = message.toLowerCase().trim();
   const greetings = ['hi', 'hello', 'hey', 'yo'];
@@ -403,6 +570,12 @@ export function processMessage(
   const mood = ctx.emotionState.mood;
   const anger = ctx.emotionState.anger_level;
   const userName = ctx.currentUser;
+
+  // Math engine — runs before all other checks
+  const mathResult = solveMath(rawMessage);
+  if (mathResult) {
+    return { response: { text: formatKill(mathResult, ctx), type: 'normal' }, newCtx: ctx };
+  }
 
   // Absolute protection — always first
   const harmPhrases = [

@@ -22,6 +22,7 @@ import {
   switchUser,
   bumpMessageStats,
   formatUserStats,
+  manualCombineNeurons,
   ACCENT_COLORS,
   KASHI_PASSWORD,
   DEV_PASSWORD,
@@ -313,6 +314,17 @@ export default function App() {
     if (msg === 'wipe all memory') {
       setConfirmWipe('all');
       addMessage('ian', 'This will wipe everything except your profile. Are you sure? (yes/no)', 'wipe');
+      return;
+    }
+    if (msg.startsWith('combine ')) {
+      const parts = raw.slice(8).split(' and ');
+      if (parts.length === 2) {
+        const { result, neurons: updated } = manualCombineNeurons(ctxRef.current.neurons, parts[0].trim(), parts[1].trim());
+        ctxRef.current.neurons = updated;
+        addMessage('ian', result, 'normal');
+      } else {
+        addMessage('ian', 'Usage: combine <topic1> and <topic2>', 'normal');
+      }
       return;
     }
     if (msg === 'stark systems') {
