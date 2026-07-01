@@ -574,7 +574,7 @@ export function processMessage(
   // Math engine — runs before all other checks
   const mathResult = solveMath(rawMessage);
   if (mathResult) {
-    return { response: { text: formatKill(mathResult, ctx), type: 'normal' }, newCtx: ctx };
+    return { response: { text: formatKillResponse(mathResult, ctx.killMode, ctx.killOnSight), type: 'normal' }, newCtx: ctx };
   }
 
   // Absolute protection — always first

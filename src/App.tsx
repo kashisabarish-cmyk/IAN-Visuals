@@ -327,6 +327,26 @@ export default function App() {
       }
       return;
     }
+    if (msg.startsWith('link ')) {
+      const parts = raw.slice(5).split(' and ');
+      if (parts.length === 2) {
+        const t1 = parts[0].trim().toLowerCase();
+        const t2 = parts[1].trim().toLowerCase();
+        const neurons = ctxRef.current.neurons;
+        const n1 = neurons.find((n) => n.topic === t1);
+        const n2 = neurons.find((n) => n.topic === t2);
+        if (!n1) { addMessage('ian', `I don't know '${t1}' yet.`, 'normal'); return; }
+        if (!n2) { addMessage('ian', `I don't know '${t2}' yet.`, 'normal'); return; }
+        if (!n1.connections.includes(t2)) n1.connections.push(t2);
+        if (!n2.connections.includes(t1)) n2.connections.push(t1);
+        ctxRef.current.neurons = [...neurons];
+        addMessage('ian', `Linked '${t1}' and '${t2}'. They are now connected.`, 'normal');
+        rerender();
+      } else {
+        addMessage('ian', 'Usage: link <topic1> and <topic2>', 'normal');
+      }
+      return;
+    }
     if (msg === 'stark systems') {
       addMessage('system', '---STARK SYSTEMS CHECK...', 'system');
       setTimeout(() => addMessage('system', '---ALL SYSTEMS GO', 'system'), 800);
