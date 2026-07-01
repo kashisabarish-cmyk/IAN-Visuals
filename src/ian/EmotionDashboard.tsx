@@ -5,6 +5,7 @@ interface Props {
   emotion: EmotionState;
   killMode: boolean;
   accent: AccentColor;
+  currentUser: string;
 }
 
 interface MeterProps {
@@ -84,7 +85,7 @@ function MoodIndicator({ mood, angerLevel }: { mood: IanMood; angerLevel: number
   );
 }
 
-export default function EmotionDashboard({ emotion, killMode, accent }: Props) {
+export default function EmotionDashboard({ emotion, killMode, accent, currentUser }: Props) {
   const accentCfg = ACCENT_COLORS[accent];
   const main = killMode ? '#ef4444' : accentCfg.main;
 
@@ -111,7 +112,7 @@ export default function EmotionDashboard({ emotion, killMode, accent }: Props) {
           icon="?"
         />
         <Meter
-          label="RESPECT FOR KASHI"
+          label={`RESPECT FOR ${currentUser.toUpperCase()}`}
           value={emotion.respect_for_kashi}
           color="#10b981"
           glow="0 0 8px rgba(16,185,129,0.5)"

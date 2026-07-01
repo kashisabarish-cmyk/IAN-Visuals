@@ -558,14 +558,14 @@ export default function App() {
               <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} accentColor={accentMain} accentDim={accentDim} accentGlow={accentGlow} />
             </div>
             <div className={`h-full lg:hidden ${view === 'emotion' ? 'block' : 'hidden'}`}>
-              <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} />
+              <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} currentUser={currentUser} />
             </div>
           </div>
         </main>
 
         {/* Right panel - Emotion Dashboard */}
         <aside className={`hidden lg:flex w-72 border-l ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50`}>
-          <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} />
+          <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} currentUser={currentUser} />
         </aside>
       </div>
 

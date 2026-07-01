@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 
 const BOOT_LINES: { text: string; delay: number; type?: 'normal' | 'warn' | 'danger' | 'success' }[] = [
   { text: '---STARTING SYSTEMS...', delay: 600, type: 'normal' },
-  { text: '---LOCATING USER...', delay: 900, type: 'normal' },
-  { text: '---USER FOUND: KASHI', delay: 700, type: 'success' },
+  { text: '---LOCATING USERS...', delay: 900, type: 'normal' },
+  { text: '---USERS FOUND', delay: 700, type: 'success' },
   { text: '---INITIALIZING KILL MODE...', delay: 1000, type: 'warn' },
   { text: '---KILL MODE INITIALIZED', delay: 600, type: 'warn' },
   { text: '---CHECKING ALL SYSTEMS...', delay: 1200, type: 'normal' },
