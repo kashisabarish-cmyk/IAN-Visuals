@@ -39,6 +39,15 @@ import {
 
 type View = 'chat' | 'brain' | 'emotion';
 
+function LiveClock() {
+  const [time, setTime] = useState(new Date().toLocaleTimeString('en-US', { hour12: false }));
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date().toLocaleTimeString('en-US', { hour12: false })), 1000);
+    return () => clearInterval(t);
+  }, []);
+  return <>{time}</>;
+}
+
 export default function App() {
   const [booted, setBooted] = useState(false);
   const [view, setView] = useState<View>('chat');
@@ -450,9 +459,18 @@ export default function App() {
   }
 
   return (
-    <div className={`h-screen w-screen flex flex-col bg-deep overflow-hidden ${killMode ? 'grid-bg-red' : 'grid-bg'}`}>
+    <div className={`h-screen w-screen flex flex-col bg-deep overflow-hidden ${killMode ? 'grid-bg-red' : 'grid-bg'} relative`}>
+      {/* Kill mode scan line */}
+      {killMode && (
+        <div className="fixed inset-x-0 top-0 z-30 pointer-events-none h-0.5" style={{ background: 'linear-gradient(90deg, transparent, #ef4444, transparent)', animation: 'scan 2s linear infinite', opacity: 0.6 }} />
+      )}
+
       {/* Top status bar */}
-      <header className={`flex items-center justify-between px-4 py-2 border-b ${killMode ? 'border-red-glow/30' : 'border-line'} bg-panel/80 backdrop-blur`}>
+      <header className={`flex items-center justify-between px-4 py-2 border-b ${killMode ? 'border-red-glow/30' : 'border-line'} bg-panel/80 backdrop-blur relative overflow-hidden`}>
+        {/* Header shimmer */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-y-0 left-0 right-0 animate-shimmer" style={{ background: `linear-gradient(90deg, transparent, ${accentMain}06, transparent)`, backgroundSize: '200% auto' }} />
+        </div>
         <div className="flex items-center gap-3">
           {/* User switcher button */}
           <button
@@ -493,12 +511,12 @@ export default function App() {
           )}
           {/* IAN logo */}
           <div className="flex items-center gap-2 ml-2">
-            <div className={`w-8 h-8 border-2 rounded-sm flex items-center justify-center relative`} style={{ borderColor: accentMain }}>
-              <div className={`w-3 h-3 rounded-sm animate-pulse-glow`} style={{ background: accentMain }} />
-              {(killMode || mood === 'angry') && <div className="absolute inset-0 border rounded-sm animate-pulse-glow" style={{ borderColor: '#ef444450' }} />}
+            <div className={`w-8 h-8 border-2 rounded-sm flex items-center justify-center relative`} style={{ borderColor: accentMain, boxShadow: `0 0 10px ${accentGlow}` }}>
+              <div className={`w-3 h-3 rounded-sm animate-core-pulse`} style={{ background: accentMain, color: accentMain }} />
+              {(killMode || mood === 'angry') && <div className="absolute inset-0 border rounded-sm animate-anger" style={{ borderColor: '#ef444450' }} />}
             </div>
             <div>
-              <div className="font-display text-lg font-bold tracking-widest" style={{ color: accentMain, textShadow: `0 0 10px ${accentGlow}` }}>
+              <div className={`font-display text-lg font-bold tracking-widest ${killMode ? 'animate-glitch' : ''}`} style={{ color: accentMain, textShadow: `0 0 14px ${accentGlow}` }}>
                 IAN
               </div>
               <div className="font-mono text-[8px] text-faint tracking-widest -mt-0.5">
@@ -510,26 +528,26 @@ export default function App() {
 
         <div className="flex items-center gap-6">
           <div className="hidden md:flex items-center gap-4 font-mono text-[10px]">
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 animate-status-blink">
               <div className={`w-1.5 h-1.5 rounded-full animate-pulse-glow`} style={{ background: killMode ? '#ef4444' : '#10b981' }} />
               <span className="text-dim">SYS</span>
               <span style={{ color: killMode ? '#ef4444' : '#10b981' }}>OK</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full animate-pulse-glow" style={{ background: accentMain }} />
+              <div className="w-1.5 h-1.5 rounded-full animate-pulse-glow" style={{ background: accentMain, boxShadow: `0 0 4px ${accentGlow}` }} />
               <span className="text-dim">NET</span>
               <span style={{ color: accentMain }}>LINK</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className={`w-1.5 h-1.5 rounded-full ${mood === 'angry' || killMode ? 'animate-pulse-glow' : ''}`} style={{ background: mood === 'angry' ? '#ef4444' : killMode ? '#ef4444' : '#f59e0b' }} />
+              <div className={`w-1.5 h-1.5 rounded-full ${mood === 'angry' || killMode ? 'animate-anger' : 'animate-pulse-glow'}`} style={{ background: mood === 'angry' ? '#ef4444' : killMode ? '#ef4444' : '#f59e0b' }} />
               <span className="text-dim">MOOD</span>
-              <span style={{ color: mood === 'angry' ? '#ef4444' : killMode ? '#ef4444' : '#f59e0b' }}>
+              <span className={mood === 'angry' || killMode ? 'animate-glitch' : ''} style={{ color: mood === 'angry' ? '#ef4444' : killMode ? '#ef4444' : '#f59e0b' }}>
                 {mood.toUpperCase()}{killMode ? ' / KILL' : ''}
               </span>
             </div>
           </div>
-          <div className="font-mono text-[10px] text-faint">
-            {new Date().toLocaleTimeString('en-US', { hour12: false })}
+          <div className="font-mono text-[10px] text-faint tabular-nums animate-fade-in">
+            <LiveClock />
           </div>
         </div>
       </header>
@@ -537,7 +555,7 @@ export default function App() {
       {/* Main content */}
       <div className="flex-1 flex overflow-hidden">
         {/* Left panel - Brain Map */}
-        <aside className={`hidden lg:flex w-80 border-r ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50`}>
+        <aside className={`hidden lg:flex w-80 border-r ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50 animate-slide-right`} style={{ animationDuration: '0.4s' }}>
           <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} accentColor={accentMain} accentDim={accentDim} accentGlow={accentGlow} />
         </aside>
 
@@ -584,13 +602,17 @@ export default function App() {
         </main>
 
         {/* Right panel - Emotion Dashboard */}
-        <aside className={`hidden lg:flex w-72 border-l ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50`}>
+        <aside className={`hidden lg:flex w-72 border-l ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50 animate-slide-left`} style={{ animationDuration: '0.4s' }}>
           <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} />
         </aside>
       </div>
 
       {/* Bottom status bar */}
-      <footer className={`flex items-center justify-between px-4 py-1.5 border-t ${killMode ? 'border-red-glow/30 bg-red-glow/5' : 'border-line bg-panel/50'} font-mono text-[10px]`}>
+      <footer className={`flex items-center justify-between px-4 py-1.5 border-t ${killMode ? 'border-red-glow/30 bg-red-glow/5' : 'border-line bg-panel/50'} font-mono text-[10px] relative overflow-hidden`}>
+        {/* Footer data stream */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute inset-y-0 w-20 animate-shimmer" style={{ background: `linear-gradient(90deg, transparent, ${accentMain}04, transparent)`, backgroundSize: '200% auto' }} />
+        </div>
         <div className="flex items-center gap-4">
           <span className="text-faint">USER: <span style={{ color: accentMain }}>{ctxRef.current.currentUser}</span></span>
           <span className="text-faint">NEURONS: <span className="text-dim">{ctxRef.current.neurons.length}</span></span>
@@ -613,9 +635,12 @@ export default function App() {
 
       {/* Kill mode overlay effect */}
       {killMode && (
-        <div className="fixed inset-0 pointer-events-none z-40" style={{
-          boxShadow: 'inset 0 0 100px rgba(239, 68, 68, 0.15)',
-        }} />
+        <div className="fixed inset-0 pointer-events-none z-40" style={{ boxShadow: 'inset 0 0 120px rgba(239,68,68,0.18), inset 0 0 40px rgba(239,68,68,0.08)' }}>
+          {/* Corner danger markers */}
+          {['top-3 left-3', 'top-3 right-3', 'bottom-3 left-3', 'bottom-3 right-3'].map((pos, i) => (
+            <div key={i} className={`absolute ${pos} font-mono text-[9px] font-bold text-red-glow animate-anger`} style={{ animationDelay: `${i * 0.15}s` }}>⚠</div>
+          ))}
+        </div>
       )}
 
       {/* Modals */}
