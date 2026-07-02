@@ -534,7 +534,7 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
 
   return (
     <>
-      {collapsedPanel}
+      {!expanded && collapsedPanel}
       {expandedOverlay}
     </>
   );

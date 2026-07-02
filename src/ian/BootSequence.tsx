@@ -139,12 +139,10 @@ export default function BootSequence({ onComplete }: { onComplete: () => void })
       ))}
 
       <div className="relative z-10 w-full max-w-2xl px-8">
-        {/* IAN Logo — glitch letters */}
+        {/* IAN Logo */}
         <div className="text-center mb-12">
           <div className="font-display text-6xl font-black tracking-[0.3em] text-cyan text-glow-cyan">
-            {'IAN'.split('').map((c, i) => (
-              <GlitchLetter key={i} char={c} delay={i * 400} />
-            ))}
+            IAN
           </div>
           <div className="font-mono text-xs text-dim tracking-[0.4em] mt-2 animate-fade-in" style={{ animationDelay: '0.3s' }}>
             INTELLIGENT AUTONOMOUS NETWORK

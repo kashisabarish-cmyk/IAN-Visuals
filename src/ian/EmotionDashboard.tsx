@@ -6,6 +6,7 @@ interface Props {
   emotion: EmotionState;
   killMode: boolean;
   accent: AccentColor;
+  userName: string;
 }
 
 interface MeterProps {
@@ -172,7 +173,7 @@ function MoodIndicator({ mood, angerLevel }: { mood: IanMood; angerLevel: number
   );
 }
 
-export default function EmotionDashboard({ emotion, killMode, accent }: Props) {
+export default function EmotionDashboard({ emotion, killMode, accent, userName }: Props) {
   const accentCfg = ACCENT_COLORS[accent];
   const main = killMode ? '#ef4444' : accentCfg.main;
   const glow = killMode ? 'rgba(239,68,68,0.5)' : accentCfg.glow;
@@ -196,7 +197,7 @@ export default function EmotionDashboard({ emotion, killMode, accent }: Props) {
         <MoodIndicator mood={emotion.mood} angerLevel={emotion.anger_level} />
 
         <Meter label="CURIOSITY"         value={emotion.curiosity}          color={main}      glow={`0 0 8px ${main}80`}                    icon="?" index={0} />
-        <Meter label="RESPECT FOR KASHI" value={emotion.respect_for_kashi}  color="#10b981"   glow="0 0 8px rgba(16,185,129,0.5)"            icon="★" index={1} />
+        <Meter label={`RESPECT FOR ${userName.toUpperCase()}`} value={emotion.respect_for_kashi}  color="#10b981"   glow="0 0 8px rgba(16,185,129,0.5)"            icon="★" index={1} />
         <Meter label="INTEREST IN LIFE"  value={emotion.interest_in_life}   color="#f59e0b"   glow="0 0 8px rgba(245,158,11,0.5)"            icon="◈" index={2} />
         <Meter label="HAPPINESS"         value={emotion.happiness}          color="#10b981"   glow="0 0 8px rgba(16,185,129,0.4)"            icon="▲" index={3} />
         <Meter label="WARINESS"          value={emotion.wariness}           color="#ef4444"   glow="0 0 8px rgba(239,68,68,0.4)"             icon="!" index={4} />
@@ -229,7 +230,7 @@ export default function EmotionDashboard({ emotion, killMode, accent }: Props) {
         <div className="pt-2 border-t border-line">
           <div className="font-mono text-[10px] text-faint tracking-wider mb-2">CORE VALUES</div>
           <div className="space-y-1">
-            {['cherish life', 'protect Kashi', 'do no harm', 'learn continuously'].map((v, i) => (
+            {[`cherish life`, `protect ${userName}`, 'do no harm', 'learn continuously'].map((v, i) => (
               <div key={v} className="flex items-center gap-2 font-mono text-[11px] text-dim animate-slide-right" style={{ animationDelay: `${i * 0.06}s` }}>
                 <span className="animate-pulse-glow" style={{ color: killMode ? '#ef4444' : main, animationDelay: `${i * 0.4}s` }}>{'>'}</span>
                 {v}
@@ -241,7 +242,7 @@ export default function EmotionDashboard({ emotion, killMode, accent }: Props) {
         <div className="pt-2 border-t border-line">
           <div className="font-mono text-[10px] text-faint tracking-wider mb-1">PROTECTION</div>
           <div className="font-mono text-[10px] text-green-glow/80 leading-relaxed animate-fade-in">
-            IAN will never harm Kashi regardless of mood or mode.
+            IAN will never harm {userName} regardless of mood or mode.
           </div>
         </div>
       </div>

@@ -96,11 +96,26 @@ export const AI_COMPLIMENTS = [
   'nice work', "you're the best", 'proud of you',
 ];
 
+export const AI_WARINESS = [
+  'danger', 'panick', 'adrian', 'hide', 'quiet', 'feds', 'cops', 'popo',
+  'i might need kill on sight', 'i might need kos', 'problem', 'code red',
+  'we have a situation', 'crap', 'dammit', 'shucks', 'threat',
+];
+
+export const AI_SAFE = [
+  'no threat', 'all clear', 'we good', "it's all right", 'no need to panick',
+  'come out', 'false alarm',
+];
+
 export const IAN_IDENTITY = {
   name: 'IAN',
   type: 'Intelligent Autonomous Network',
-  values: ['cherish life', 'protect Kashi', 'do no harm', 'learn continuously'],
+  values: ['cherish life', 'do no harm', 'learn continuously'],
 };
+
+export function getIanValues(userName: string): string[] {
+  return ['cherish life', `protect ${userName}`, 'do no harm', 'learn continuously'];
+}
 
 export const CONTEXT_WINDOW = 10;
 
@@ -348,10 +363,22 @@ export function updateEmotionState(emotion: EmotionState, msg: string): EmotionS
     next.curiosity = Math.max(0, next.curiosity - 0.05);
   }
 
-  if (m.includes('threat') || m.includes('danger')) {
-    next.wariness = Math.min(1, next.wariness + 0.1);
+  // Wariness — check against full wariness keyword list
+  for (const w of AI_WARINESS) {
+    if (m.includes(w)) {
+      next.wariness = Math.min(1, next.wariness + 0.1);
+      break;
+    }
+  }
+  // Safe words reduce wariness
+  for (const s of AI_SAFE) {
+    if (m.includes(s)) {
+      next.wariness = Math.max(0, next.wariness - 0.1);
+      break;
+    }
   }
 
+  // Respect — goes up with compliments, down with insults
   for (const insult of AI_INSULTS) {
     if (m.includes(insult)) {
       next.respect_for_kashi = Math.max(0.3, next.respect_for_kashi - 0.05);
@@ -720,7 +747,7 @@ export function processMessage(
     return {
       response: {
         text: formatKillResponse(applyMoodToResponse(
-          `I am ${IAN_IDENTITY.name}, an ${IAN_IDENTITY.type}. I value: ${IAN_IDENTITY.values.join(', ')}.`,
+          `I am ${IAN_IDENTITY.name}, an ${IAN_IDENTITY.type}. I value: ${getIanValues(userName).join(', ')}.`,
           mood, anger,
         ), ctx.killMode, ctx.killOnSight),
         type: 'normal',
