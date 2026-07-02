@@ -60,6 +60,7 @@ export default function App() {
   const [accent, setAccent] = useState<AccentColor>('cyan');
   const [passwordPrompt, setPasswordPrompt] = useState<{ username: string; isDev: boolean } | null>(null);
   const [showDevData, setShowDevData] = useState(false);
+  const [brainMapExpanded, setBrainMapExpanded] = useState(false);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -553,10 +554,38 @@ export default function App() {
       </header>
 
       {/* Main content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Expanded BrainMap overlay */}
+        {brainMapExpanded && (
+          <div className="absolute inset-0 z-20 bg-panel/95 backdrop-blur-sm animate-fade-in">
+            <BrainMap
+              neurons={ctxRef.current.neurons}
+              killMode={killMode || mood === 'angry'}
+              accentColor={accentMain}
+              accentDim={accentDim}
+              accentGlow={accentGlow}
+              expanded={true}
+              onExpandToggle={() => setBrainMapExpanded(false)}
+            />
+          </div>
+        )}
+
         {/* Left panel - Brain Map */}
-        <aside className={`hidden lg:flex w-80 border-r ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50 animate-slide-right`} style={{ animationDuration: '0.4s' }}>
-          <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} accentColor={accentMain} accentDim={accentDim} accentGlow={accentGlow} />
+        <aside
+          className={`hidden lg:flex border-r ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50 animate-slide-right transition-all duration-300 ease-out`}
+          style={{ animationDuration: '0.4s', width: brainMapExpanded ? 0 : 320, opacity: brainMapExpanded ? 0 : 1, overflow: 'hidden' }}
+        >
+          <div className="w-80">
+            <BrainMap
+              neurons={ctxRef.current.neurons}
+              killMode={killMode || mood === 'angry'}
+              accentColor={accentMain}
+              accentDim={accentDim}
+              accentGlow={accentGlow}
+              expanded={false}
+              onExpandToggle={() => setBrainMapExpanded(true)}
+            />
+          </div>
         </aside>
 
         {/* Center - Chat */}
@@ -593,7 +622,15 @@ export default function App() {
               />
             </div>
             <div className={`h-full lg:hidden ${view === 'brain' ? 'block' : 'hidden'}`}>
-              <BrainMap neurons={ctxRef.current.neurons} killMode={killMode || mood === 'angry'} accentColor={accentMain} accentDim={accentDim} accentGlow={accentGlow} />
+              <BrainMap
+                neurons={ctxRef.current.neurons}
+                killMode={killMode || mood === 'angry'}
+                accentColor={accentMain}
+                accentDim={accentDim}
+                accentGlow={accentGlow}
+                expanded={brainMapExpanded}
+                onExpandToggle={() => setBrainMapExpanded(!brainMapExpanded)}
+              />
             </div>
             <div className={`h-full lg:hidden ${view === 'emotion' ? 'block' : 'hidden'}`}>
               <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} userName={ctxRef.current.currentUser} />
@@ -602,8 +639,13 @@ export default function App() {
         </main>
 
         {/* Right panel - Emotion Dashboard */}
-        <aside className={`hidden lg:flex w-72 border-l ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50 animate-slide-left`} style={{ animationDuration: '0.4s' }}>
-          <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} userName={ctxRef.current.currentUser} />
+        <aside
+          className={`hidden lg:flex border-l ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50 animate-slide-left transition-all duration-300 ease-out`}
+          style={{ animationDuration: '0.4s', width: brainMapExpanded ? 0 : 288, opacity: brainMapExpanded ? 0 : 1, overflow: 'hidden' }}
+        >
+          <div className="w-72">
+            <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} userName={ctxRef.current.currentUser} />
+          </div>
         </aside>
       </div>
 

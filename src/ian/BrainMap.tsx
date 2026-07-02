@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Neuron } from './engine';
-import { ZoomIn, ZoomOut, Maximize2, RotateCcw, Filter, Search, X } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Filter, Search, X } from 'lucide-react';
 
 interface Props {
   neurons: Neuron[];
@@ -8,6 +8,8 @@ interface Props {
   accentColor: string;
   accentDim: string;
   accentGlow: string;
+  expanded?: boolean;
+  onExpandToggle?: () => void;
 }
 
 interface NodePosition {
@@ -21,7 +23,7 @@ interface NodePosition {
 type LayoutMode = 'radial' | 'force' | 'cluster';
 type FilterMode = 'all' | 'connected' | 'isolated';
 
-export default function BrainMap({ neurons, killMode, accentColor, accentDim, accentGlow }: Props) {
+export default function BrainMap({ neurons, killMode, accentColor, accentDim, accentGlow, expanded = false, onExpandToggle }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>(0);
   const [positions, setPositions] = useState<NodePosition[]>([]);
@@ -264,15 +266,20 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
           <button onClick={() => setShowControls(!showControls)} className="p-1 hover:bg-panel-2 rounded transition-colors">
             <Filter size={12} style={{ color: showControls ? accentColor : '#64748b' }} />
           </button>
+          {onExpandToggle && (
+            <button onClick={onExpandToggle} className="p-1 hover:bg-panel-2 rounded transition-colors" title={expanded ? 'Collapse' : 'Expand'}>
+              {expanded ? <Minimize2 size={12} style={{ color: accentColor }} /> : <Maximize2 size={12} style={{ color: '#64748b' }} />}
+            </button>
+          )}
         </div>
       </div>
 
       {/* Controls */}
       {showControls && (
-        <div className="border-b border-line px-4 py-2 bg-panel/50 space-y-2 animate-fade-in">
+        <div className="border-b border-line px-4 py-2 bg-panel/50 space-y-2 animate-fade-in overflow-hidden">
           {/* Search */}
           <div className="flex items-center gap-2">
-            <div className="relative flex-1">
+            <div className="relative flex-1 min-w-0">
               <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-faint" />
               <input
                 type="text"
@@ -290,7 +297,7 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
           </div>
 
           {/* Layout & Filter Controls */}
-          <div className="flex items-center gap-4 text-[10px]">
+          <div className="flex flex-wrap items-center gap-3 text-[10px]">
             <div className="flex items-center gap-1">
               <span className="text-faint">LAYOUT:</span>
               {(['radial', 'force', 'cluster'] as LayoutMode[]).map((mode) => (
