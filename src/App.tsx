@@ -603,7 +603,7 @@ export default function App() {
 
         {/* Right panel - Emotion Dashboard */}
         <aside className={`hidden lg:flex w-72 border-l ${killMode ? 'border-red-glow/20' : 'border-line'} bg-panel/50 animate-slide-left`} style={{ animationDuration: '0.4s' }}>
-          <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} />
+          <EmotionDashboard emotion={ctxRef.current.emotionState} killMode={killMode} accent={accent} userName={ctxRef.current.currentUser} />
         </aside>
       </div>
 
