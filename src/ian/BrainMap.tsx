@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Neuron } from './engine';
-import { ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Filter, Search, X } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Filter, Search, X, Trash2 } from 'lucide-react';
 
 interface Props {
   neurons: Neuron[];
@@ -10,6 +10,7 @@ interface Props {
   accentGlow: string;
   expanded?: boolean;
   onExpandToggle?: () => void;
+  onRemoveNeuron?: (topic: string) => void;
 }
 
 interface NodePosition {
@@ -23,7 +24,7 @@ interface NodePosition {
 type LayoutMode = 'radial' | 'force' | 'cluster';
 type FilterMode = 'all' | 'connected' | 'isolated';
 
-export default function BrainMap({ neurons, killMode, accentColor, accentDim, accentGlow, expanded = false, onExpandToggle }: Props) {
+export default function BrainMap({ neurons, killMode, accentColor, accentDim, accentGlow, expanded = false, onExpandToggle, onRemoveNeuron }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>(0);
   const [positions, setPositions] = useState<NodePosition[]>([]);
@@ -245,6 +246,14 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
     const base = 10;
     const connectionBonus = neuron.connections.length * 2;
     return Math.min(base + connectionBonus, 20);
+  };
+
+  const getConnectionColor = (count: number): string => {
+    if (count >= 15) return '#a855f7'; // purple
+    if (count >= 10) return '#ef4444'; // red
+    if (count >= 5) return '#10b981'; // green
+    if (count >= 1) return '#f59e0b'; // yellow/amber
+    return '#64748b'; // gray for no connections
   };
 
   return (
@@ -531,7 +540,7 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
                         cx={pos.x + radius * 0.7}
                         cy={pos.y - radius * 0.7}
                         r={4}
-                        fill={pos.neuron.connections.length >= 3 ? '#10b981' : '#f59e0b'}
+                        fill={getConnectionColor(pos.neuron.connections.length)}
                         stroke="#0d1320"
                         strokeWidth="1"
                       />
@@ -578,18 +587,43 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
       {selectedNeuron && (
         <div className="border-t border-line bg-panel/90 backdrop-blur p-4 animate-slide-up">
           <div className="flex items-start justify-between mb-2">
-            <div className="font-mono text-sm font-bold" style={{ color: killMode ? '#ef4444' : accentColor, textShadow: `0 0 8px ${accentGlow}` }}>
-              {selectedNeuron.topic}
+            <div className="flex items-center gap-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ background: getConnectionColor(selectedNeuron.connections.length), boxShadow: `0 0 6px ${getConnectionColor(selectedNeuron.connections.length)}80` }}
+              />
+              <div className="font-mono text-sm font-bold" style={{ color: killMode ? '#ef4444' : accentColor, textShadow: `0 0 8px ${accentGlow}` }}>
+                {selectedNeuron.topic}
+              </div>
             </div>
-            <button onClick={() => setSelectedNeuron(null)} className="text-faint hover:text-dim transition-colors">
-              <X size={14} />
-            </button>
+            <div className="flex items-center gap-2">
+              {onRemoveNeuron && (
+                <button
+                  onClick={() => {
+                    if (confirm(`Remove neuron "${selectedNeuron.topic}"?`)) {
+                      onRemoveNeuron(selectedNeuron.topic);
+                      setSelectedNeuron(null);
+                    }
+                  }}
+                  className="p-1 hover:bg-red-500/20 rounded transition-colors text-red-400 hover:text-red-300"
+                  title="Remove neuron"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )}
+              <button onClick={() => setSelectedNeuron(null)} className="text-faint hover:text-dim transition-colors">
+                <X size={14} />
+              </button>
+            </div>
           </div>
           <div className="font-mono text-xs text-slate-300 leading-relaxed mb-3">{selectedNeuron.explanation}</div>
           <div className="grid grid-cols-2 gap-4 text-[10px]">
             <div>
               <span className="text-faint">CONNECTIONS: </span>
-              <span className="text-dim">{selectedNeuron.connections.length}</span>
+              <span style={{ color: getConnectionColor(selectedNeuron.connections.length) }}>{selectedNeuron.connections.length}</span>
+              <span className="text-faint ml-1">
+                ({selectedNeuron.connections.length >= 15 ? 'purple' : selectedNeuron.connections.length >= 10 ? 'red' : selectedNeuron.connections.length >= 5 ? 'green' : selectedNeuron.connections.length >= 1 ? 'yellow' : 'none'})
+              </span>
               {selectedNeuron.connections.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {selectedNeuron.connections.slice(0, 5).map((c) => (
