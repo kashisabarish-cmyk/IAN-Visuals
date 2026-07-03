@@ -300,36 +300,76 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
           <div className="flex flex-wrap items-center gap-3 text-[10px]">
             <div className="flex items-center gap-1">
               <span className="text-faint">LAYOUT:</span>
-              {(['radial', 'force', 'cluster'] as LayoutMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setLayoutMode(mode)}
-                  className="px-2 py-0.5 rounded font-mono transition-all"
-                  style={{
-                    background: layoutMode === mode ? accentColor + '30' : 'transparent',
-                    color: layoutMode === mode ? accentColor : '#64748b',
-                  }}
-                >
-                  {mode[0].toUpperCase()}
-                </button>
-              ))}
+              <button
+                onClick={() => setLayoutMode('radial')}
+                className="px-2 py-0.5 rounded font-mono transition-all"
+                style={{
+                  background: layoutMode === 'radial' ? accentColor + '30' : 'transparent',
+                  color: layoutMode === 'radial' ? accentColor : '#64748b',
+                }}
+                title="Radial: Arrange nodes in a circle"
+              >
+                R
+              </button>
+              <button
+                onClick={() => setLayoutMode('force')}
+                className="px-2 py-0.5 rounded font-mono transition-all"
+                style={{
+                  background: layoutMode === 'force' ? accentColor + '30' : 'transparent',
+                  color: layoutMode === 'force' ? accentColor : '#64748b',
+                }}
+                title="Force: Physics simulation with connected nodes attracting"
+              >
+                F
+              </button>
+              <button
+                onClick={() => setLayoutMode('cluster')}
+                className="px-2 py-0.5 rounded font-mono transition-all"
+                style={{
+                  background: layoutMode === 'cluster' ? accentColor + '30' : 'transparent',
+                  color: layoutMode === 'cluster' ? accentColor : '#64748b',
+                }}
+                title="Cluster: Group nodes by connection count (hub/connected/isolated)"
+              >
+                C
+              </button>
             </div>
 
             <div className="flex items-center gap-1">
               <span className="text-faint">FILTER:</span>
-              {(['all', 'connected', 'isolated'] as FilterMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => setFilterMode(mode)}
-                  className="px-2 py-0.5 rounded font-mono transition-all"
-                  style={{
-                    background: filterMode === mode ? accentColor + '30' : 'transparent',
-                    color: filterMode === mode ? accentColor : '#64748b',
-                  }}
-                >
-                  {mode === 'all' ? 'A' : mode === 'connected' ? 'C' : 'I'}
-                </button>
-              ))}
+              <button
+                onClick={() => setFilterMode('all')}
+                className="px-2 py-0.5 rounded font-mono transition-all"
+                style={{
+                  background: filterMode === 'all' ? accentColor + '30' : 'transparent',
+                  color: filterMode === 'all' ? accentColor : '#64748b',
+                }}
+                title="All: Show all neurons"
+              >
+                A
+              </button>
+              <button
+                onClick={() => setFilterMode('connected')}
+                className="px-2 py-0.5 rounded font-mono transition-all"
+                style={{
+                  background: filterMode === 'connected' ? accentColor + '30' : 'transparent',
+                  color: filterMode === 'connected' ? accentColor : '#64748b',
+                }}
+                title="Connected: Only show neurons with at least one link"
+              >
+                C
+              </button>
+              <button
+                onClick={() => setFilterMode('isolated')}
+                className="px-2 py-0.5 rounded font-mono transition-all"
+                style={{
+                  background: filterMode === 'isolated' ? accentColor + '30' : 'transparent',
+                  color: filterMode === 'isolated' ? accentColor : '#64748b',
+                }}
+                title="Isolated: Only show neurons with no connections"
+              >
+                I
+              </button>
             </div>
 
             {layoutMode === 'force' && (
