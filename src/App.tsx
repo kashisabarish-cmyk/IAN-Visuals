@@ -386,6 +386,16 @@ export default function App() {
       }
       return;
     }
+    if (msg.startsWith('remove ') || msg.startsWith('forget ')) {
+      const topic = raw.slice(msg.startsWith('remove ') ? 7 : 7).trim().toLowerCase();
+      const neuron = ctxRef.current.neurons.find((n) => n.topic === topic);
+      if (!neuron) {
+        addMessage('ian', `I don't know '${topic}'.`, 'normal');
+      } else {
+        handleRemoveNeuron(topic);
+      }
+      return;
+    }
     if (msg === 'stark systems') {
       addMessage('system', '---STARK SYSTEMS CHECK...', 'system');
       setTimeout(() => addMessage('system', '---ALL SYSTEMS GO', 'system'), 800);
@@ -466,6 +476,18 @@ export default function App() {
     }
     ctxRef.current.pendingNeuron = null;
     ctxRef.current.lastGrowthTime = Date.now() / 1000;
+    saveState();
+    rerender();
+  };
+
+  const handleRemoveNeuron = (topic: string) => {
+    ctxRef.current.neurons = ctxRef.current.neurons.filter((n) => n.topic !== topic);
+    // Remove connections to this neuron from other neurons
+    ctxRef.current.neurons.forEach((n) => {
+      n.connections = n.connections.filter((c) => c !== topic);
+    });
+    ctxRef.current.neurons = [...ctxRef.current.neurons];
+    addMessage('system', `Neuron '${topic}' removed.`, 'system');
     saveState();
     rerender();
   };
@@ -608,6 +630,7 @@ export default function App() {
               accentGlow={accentGlow}
               expanded={true}
               onExpandToggle={() => setBrainMapExpanded(false)}
+              onRemoveNeuron={handleRemoveNeuron}
             />
           </div>
         )}
@@ -626,6 +649,7 @@ export default function App() {
               accentGlow={accentGlow}
               expanded={false}
               onExpandToggle={() => setBrainMapExpanded(true)}
+              onRemoveNeuron={handleRemoveNeuron}
             />
           </div>
         </aside>
@@ -672,6 +696,7 @@ export default function App() {
                 accentGlow={accentGlow}
                 expanded={brainMapExpanded}
                 onExpandToggle={() => setBrainMapExpanded(!brainMapExpanded)}
+                onRemoveNeuron={handleRemoveNeuron}
               />
             </div>
             <div className={`h-full lg:hidden ${view === 'emotion' ? 'block' : 'hidden'}`}>
