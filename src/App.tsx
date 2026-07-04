@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Users, Settings, Terminal } from 'lucide-react';
 import BootSequence from './ian/BootSequence';
 import ChatInterface, { type ChatMessage } from './ian/ChatInterface';
@@ -8,6 +8,7 @@ import UserSwitcher from './ian/UserSwitcher';
 import SettingsPanel from './ian/SettingsPanel';
 import DevDataPanel from './ian/DevDataPanel';
 import PasswordPrompt from './ian/PasswordPrompt';
+import { loadIanState, saveIanState } from './lib/persistence';
 import {
   type IanContext,
   type MemoryEntry,
@@ -50,6 +51,7 @@ function LiveClock() {
 
 export default function App() {
   const [booted, setBooted] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [view, setView] = useState<View>('chat');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [thinking, setThinking] = useState(false);
@@ -61,6 +63,7 @@ export default function App() {
   const [passwordPrompt, setPasswordPrompt] = useState<{ username: string; isDev: boolean } | null>(null);
   const [showDevData, setShowDevData] = useState(false);
   const [brainMapExpanded, setBrainMapExpanded] = useState(false);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const onResize = () => setIsDesktop(window.innerWidth >= 1024);
@@ -83,6 +86,28 @@ export default function App() {
     users: DEFAULT_USERS,
     devMode: false,
   });
+
+  // Load state from Supabase on mount
+  useEffect(() => {
+    const loadState = async () => {
+      const savedCtx = await loadIanState();
+      if (savedCtx) {
+        ctxRef.current = savedCtx;
+      }
+      setLoading(false);
+    };
+    loadState();
+  }, []);
+
+  // Debounced save function
+  const saveState = useCallback(() => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveIanState(ctxRef.current);
+    }, 500);
+  }, []);
 
   const [, forceUpdate] = useState(0);
   const rerender = () => forceUpdate((n) => n + 1);
@@ -131,6 +156,7 @@ export default function App() {
   };
 
   const doSwitchUser = (username: string) => {
+    saveState();
     if (username === ctxRef.current.currentUser) {
       setShowUserSwitcher(false);
       return;
@@ -213,6 +239,7 @@ export default function App() {
           addMessage('ian', 'Full memory wipe complete. I remember you. Everything else is gone.', 'wipe');
         }
         setConfirmWipe(null);
+        saveState();
         rerender();
         return;
       }
@@ -332,6 +359,7 @@ export default function App() {
         const { result, neurons: updated } = manualCombineNeurons(ctxRef.current.neurons, parts[0].trim(), parts[1].trim());
         ctxRef.current.neurons = updated;
         addMessage('ian', result, 'normal');
+        saveState();
       } else {
         addMessage('ian', 'Usage: combine <topic1> and <topic2>', 'normal');
       }
@@ -351,6 +379,7 @@ export default function App() {
         if (!n2.connections.includes(t1)) n2.connections.push(t1);
         ctxRef.current.neurons = [...neurons];
         addMessage('ian', `Linked '${t1}' and '${t2}'. They are now connected.`, 'normal');
+        saveState();
         rerender();
       } else {
         addMessage('ian', 'Usage: link <topic1> and <topic2>', 'normal');
@@ -380,6 +409,7 @@ export default function App() {
       logMemory(ctxRef.current.currentUser, raw, response.text);
       addToContext(raw, response.text);
       setThinking(false);
+      saveState();
       rerender();
 
       // Autonomous growth check
@@ -436,17 +466,18 @@ export default function App() {
     }
     ctxRef.current.pendingNeuron = null;
     ctxRef.current.lastGrowthTime = Date.now() / 1000;
+    saveState();
     rerender();
   };
 
   // Welcome message after boot
   useEffect(() => {
-    if (booted && messages.length === 0) {
+    if (booted && !loading && messages.length === 0) {
       addMessage('system', 'IAN ONLINE', 'system');
       addMessage('system', "Commands: 'switch user', 'settings', 'dev mode', 'show network', 'show context', 'wipe conversation', 'exit'", 'system');
       addMessage('ian', `Hello, ${ctxRef.current.currentUser}. I am IAN — your Intelligent Autonomous Network. I am here to learn, grow, and assist. What shall we discover today?`, 'normal');
     }
-  }, [booted]); // eslint-disable-line
+  }, [booted, loading]); // eslint-disable-line
 
   const killMode = ctxRef.current.killMode;
   const mood = ctxRef.current.emotionState.mood;
@@ -457,6 +488,17 @@ export default function App() {
 
   if (!booted) {
     return <BootSequence onComplete={() => setBooted(true)} />;
+  }
+
+  if (loading) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-deep">
+        <div className="text-center">
+          <div className="font-display text-2xl font-bold tracking-widest text-cyan animate-pulse-glow">IAN</div>
+          <div className="font-mono text-xs text-faint mt-2 animate-fade-in">Loading memory...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
