@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { Neuron } from './engine';
-import { ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Filter, Search, X, Trash2 } from 'lucide-react';
+import { ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Filter, Search, X } from 'lucide-react';
 
 interface Props {
   neurons: Neuron[];
@@ -10,7 +10,6 @@ interface Props {
   accentGlow: string;
   expanded?: boolean;
   onExpandToggle?: () => void;
-  onRemoveNeuron?: (topic: string) => void;
 }
 
 interface NodePosition {
@@ -24,7 +23,7 @@ interface NodePosition {
 type LayoutMode = 'radial' | 'force' | 'cluster';
 type FilterMode = 'all' | 'connected' | 'isolated';
 
-export default function BrainMap({ neurons, killMode, accentColor, accentDim, accentGlow, expanded = false, onExpandToggle, onRemoveNeuron }: Props) {
+export default function BrainMap({ neurons, killMode, accentColor, accentDim, accentGlow, expanded = false, onExpandToggle }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<number>(0);
   const [positions, setPositions] = useState<NodePosition[]>([]);
@@ -248,14 +247,6 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
     return Math.min(base + connectionBonus, 20);
   };
 
-  const getConnectionColor = (count: number): string => {
-    if (count >= 15) return '#a855f7'; // purple
-    if (count >= 10) return '#ef4444'; // red
-    if (count >= 5) return '#10b981'; // green
-    if (count >= 1) return '#f59e0b'; // yellow/amber
-    return '#64748b'; // gray for no connections
-  };
-
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -309,76 +300,36 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
           <div className="flex flex-wrap items-center gap-3 text-[10px]">
             <div className="flex items-center gap-1">
               <span className="text-faint">LAYOUT:</span>
-              <button
-                onClick={() => setLayoutMode('radial')}
-                className="px-2 py-0.5 rounded font-mono transition-all"
-                style={{
-                  background: layoutMode === 'radial' ? accentColor + '30' : 'transparent',
-                  color: layoutMode === 'radial' ? accentColor : '#64748b',
-                }}
-                title="Radial: Arrange nodes in a circle"
-              >
-                R
-              </button>
-              <button
-                onClick={() => setLayoutMode('force')}
-                className="px-2 py-0.5 rounded font-mono transition-all"
-                style={{
-                  background: layoutMode === 'force' ? accentColor + '30' : 'transparent',
-                  color: layoutMode === 'force' ? accentColor : '#64748b',
-                }}
-                title="Force: Physics simulation with connected nodes attracting"
-              >
-                F
-              </button>
-              <button
-                onClick={() => setLayoutMode('cluster')}
-                className="px-2 py-0.5 rounded font-mono transition-all"
-                style={{
-                  background: layoutMode === 'cluster' ? accentColor + '30' : 'transparent',
-                  color: layoutMode === 'cluster' ? accentColor : '#64748b',
-                }}
-                title="Cluster: Group nodes by connection count (hub/connected/isolated)"
-              >
-                C
-              </button>
+              {(['radial', 'force', 'cluster'] as LayoutMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setLayoutMode(mode)}
+                  className="px-2 py-0.5 rounded font-mono transition-all"
+                  style={{
+                    background: layoutMode === mode ? accentColor + '30' : 'transparent',
+                    color: layoutMode === mode ? accentColor : '#64748b',
+                  }}
+                >
+                  {mode[0].toUpperCase()}
+                </button>
+              ))}
             </div>
 
             <div className="flex items-center gap-1">
               <span className="text-faint">FILTER:</span>
-              <button
-                onClick={() => setFilterMode('all')}
-                className="px-2 py-0.5 rounded font-mono transition-all"
-                style={{
-                  background: filterMode === 'all' ? accentColor + '30' : 'transparent',
-                  color: filterMode === 'all' ? accentColor : '#64748b',
-                }}
-                title="All: Show all neurons"
-              >
-                A
-              </button>
-              <button
-                onClick={() => setFilterMode('connected')}
-                className="px-2 py-0.5 rounded font-mono transition-all"
-                style={{
-                  background: filterMode === 'connected' ? accentColor + '30' : 'transparent',
-                  color: filterMode === 'connected' ? accentColor : '#64748b',
-                }}
-                title="Connected: Only show neurons with at least one link"
-              >
-                C
-              </button>
-              <button
-                onClick={() => setFilterMode('isolated')}
-                className="px-2 py-0.5 rounded font-mono transition-all"
-                style={{
-                  background: filterMode === 'isolated' ? accentColor + '30' : 'transparent',
-                  color: filterMode === 'isolated' ? accentColor : '#64748b',
-                }}
-                title="Isolated: Only show neurons with no connections"
-              >
-                I
-              </button>
+              {(['all', 'connected', 'isolated'] as FilterMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  onClick={() => setFilterMode(mode)}
+                  className="px-2 py-0.5 rounded font-mono transition-all"
+                  style={{
+                    background: filterMode === mode ? accentColor + '30' : 'transparent',
+                    color: filterMode === mode ? accentColor : '#64748b',
+                  }}
+                >
+                  {mode === 'all' ? 'A' : mode === 'connected' ? 'C' : 'I'}
+                </button>
+              ))}
             </div>
 
             {layoutMode === 'force' && (
@@ -540,7 +491,7 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
                         cx={pos.x + radius * 0.7}
                         cy={pos.y - radius * 0.7}
                         r={4}
-                        fill={getConnectionColor(pos.neuron.connections.length)}
+                        fill={pos.neuron.connections.length >= 3 ? '#10b981' : '#f59e0b'}
                         stroke="#0d1320"
                         strokeWidth="1"
                       />
@@ -587,43 +538,18 @@ export default function BrainMap({ neurons, killMode, accentColor, accentDim, ac
       {selectedNeuron && (
         <div className="border-t border-line bg-panel/90 backdrop-blur p-4 animate-slide-up">
           <div className="flex items-start justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <div
-                className="w-3 h-3 rounded-full"
-                style={{ background: getConnectionColor(selectedNeuron.connections.length), boxShadow: `0 0 6px ${getConnectionColor(selectedNeuron.connections.length)}80` }}
-              />
-              <div className="font-mono text-sm font-bold" style={{ color: killMode ? '#ef4444' : accentColor, textShadow: `0 0 8px ${accentGlow}` }}>
-                {selectedNeuron.topic}
-              </div>
+            <div className="font-mono text-sm font-bold" style={{ color: killMode ? '#ef4444' : accentColor, textShadow: `0 0 8px ${accentGlow}` }}>
+              {selectedNeuron.topic}
             </div>
-            <div className="flex items-center gap-2">
-              {onRemoveNeuron && (
-                <button
-                  onClick={() => {
-                    if (confirm(`Remove neuron "${selectedNeuron.topic}"?`)) {
-                      onRemoveNeuron(selectedNeuron.topic);
-                      setSelectedNeuron(null);
-                    }
-                  }}
-                  className="p-1 hover:bg-red-500/20 rounded transition-colors text-red-400 hover:text-red-300"
-                  title="Remove neuron"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
-              <button onClick={() => setSelectedNeuron(null)} className="text-faint hover:text-dim transition-colors">
-                <X size={14} />
-              </button>
-            </div>
+            <button onClick={() => setSelectedNeuron(null)} className="text-faint hover:text-dim transition-colors">
+              <X size={14} />
+            </button>
           </div>
           <div className="font-mono text-xs text-slate-300 leading-relaxed mb-3">{selectedNeuron.explanation}</div>
           <div className="grid grid-cols-2 gap-4 text-[10px]">
             <div>
               <span className="text-faint">CONNECTIONS: </span>
-              <span style={{ color: getConnectionColor(selectedNeuron.connections.length) }}>{selectedNeuron.connections.length}</span>
-              <span className="text-faint ml-1">
-                ({selectedNeuron.connections.length >= 15 ? 'purple' : selectedNeuron.connections.length >= 10 ? 'red' : selectedNeuron.connections.length >= 5 ? 'green' : selectedNeuron.connections.length >= 1 ? 'yellow' : 'none'})
-              </span>
+              <span className="text-dim">{selectedNeuron.connections.length}</span>
               {selectedNeuron.connections.length > 0 && (
                 <div className="mt-1 flex flex-wrap gap-1">
                   {selectedNeuron.connections.slice(0, 5).map((c) => (
