@@ -11,31 +11,6 @@ const BOOT_LINES: { text: string; delay: number; type?: 'normal' | 'warn' | 'dan
   { text: '---STARTING...', delay: 800, type: 'normal' },
 ];
 
-function GlitchLetter({ char, delay = 0 }: { char: string; delay?: number }) {
-  const [glitched, setGlitched] = useState(false);
-  const GLITCH_CHARS = '!@#$%^&*01ABXZabxz<>';
-
-  useEffect(() => {
-    const schedule = () => {
-      const wait = 2000 + Math.random() * 4000;
-      const t1 = setTimeout(() => {
-        setGlitched(true);
-        const t2 = setTimeout(() => { setGlitched(false); schedule(); }, 80 + Math.random() * 120);
-        return t2;
-      }, wait);
-      return t1;
-    };
-    const t = setTimeout(schedule, delay);
-    return () => clearTimeout(t);
-  }, []); // eslint-disable-line
-
-  return (
-    <span className={glitched ? 'text-red-glow' : ''} style={{ display: 'inline-block', minWidth: '0.6em', transition: 'color 0.05s' }}>
-      {glitched ? GLITCH_CHARS[Math.floor(Math.random() * GLITCH_CHARS.length)] : char}
-    </span>
-  );
-}
-
 function DataBar({ pct }: { pct: number }) {
   const slots = 40;
   const filled = Math.round(pct * slots / 100);

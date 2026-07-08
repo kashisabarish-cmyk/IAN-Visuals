@@ -58,7 +58,6 @@ export default function DevDataPanel({ ctx, accent, onUpdate, onClose }: Props) 
             label={`NEURONS (${ctx.neurons.length})`}
             isOpen={openSection === 'neurons'}
             onToggle={() => toggle('neurons')}
-            accentMain={accentMain}
           >
             <NeuronEditor neurons={ctx.neurons} onChange={updateNeurons} accentMain={accentMain} />
           </SectionWrapper>
@@ -68,9 +67,8 @@ export default function DevDataPanel({ ctx, accent, onUpdate, onClose }: Props) 
             label={`LEARNED TOPICS (${Object.keys(ctx.learnedTopics).length})`}
             isOpen={openSection === 'learned'}
             onToggle={() => toggle('learned')}
-            accentMain={accentMain}
           >
-            <LearnedEditor learned={ctx.learnedTopics} onChange={updateLearned} />
+            <LearnedEditor learned={ctx.learnedTopics} onChange={updateLearned} accentMain={accentMain} />
           </SectionWrapper>
 
           {/* EMOTION STATE */}
@@ -78,7 +76,6 @@ export default function DevDataPanel({ ctx, accent, onUpdate, onClose }: Props) 
             label="EMOTION STATE"
             isOpen={openSection === 'emotion'}
             onToggle={() => toggle('emotion')}
-            accentMain={accentMain}
           >
             <EmotionEditor emotion={ctx.emotionState} onChange={updateEmotion} accentMain={accentMain} />
           </SectionWrapper>
@@ -88,7 +85,6 @@ export default function DevDataPanel({ ctx, accent, onUpdate, onClose }: Props) 
             label={`USER PROFILES (${Object.keys(ctx.users).length})`}
             isOpen={openSection === 'users'}
             onToggle={() => toggle('users')}
-            accentMain={accentMain}
           >
             <UsersEditor users={ctx.users} currentUser={ctx.currentUser} onChange={updateUsers} accentMain={accentMain} />
           </SectionWrapper>
@@ -117,11 +113,10 @@ interface SectionWrapperProps {
   label: string;
   isOpen: boolean;
   onToggle: () => void;
-  accentMain: string;
   children: React.ReactNode;
 }
 
-function SectionWrapper({ label, isOpen, onToggle, accentMain, children }: SectionWrapperProps) {
+function SectionWrapper({ label, isOpen, onToggle, children }: SectionWrapperProps) {
   return (
     <div className="border border-line rounded overflow-hidden">
       <button onClick={onToggle} className="w-full flex items-center justify-between px-3 py-2 bg-deep-2 hover:bg-panel-2 transition-colors">
@@ -203,7 +198,7 @@ function NeuronEditor({ neurons, onChange, accentMain }: { neurons: Neuron[]; on
   );
 }
 
-function LearnedEditor({ learned, onChange }: { learned: Record<string, string>; onChange: (l: Record<string, string>) => void }) {
+function LearnedEditor({ learned, onChange, accentMain }: { learned: Record<string, string>; onChange: (l: Record<string, string>) => void; accentMain: string }) {
   const [newKey, setNewKey] = useState('');
   const [newVal, setNewVal] = useState('');
   const keys = Object.keys(learned);

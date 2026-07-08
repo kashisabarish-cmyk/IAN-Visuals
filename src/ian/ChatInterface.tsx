@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { IanResponse, IanContext, AccentColor } from './engine';
 import { ACCENT_COLORS } from './engine';
 
@@ -63,11 +63,9 @@ export default function ChatInterface({ messages, killMode, accent, pendingNeuro
   const accentCfg = ACCENT_COLORS[accent];
   const accentMain = killMode ? '#ef4444' : accentCfg.main;
   const accentGlow = killMode ? 'rgba(239,68,68,0.5)' : accentCfg.glow;
-  const accentDim = killMode ? '#991b1b' : accentCfg.dim;
 
   // Track which messages have been "seen" — older ones skip typewriter
   const seenRef = useRef<Set<string>>(new Set());
-  const [, forceUpdate] = useState(0);
 
   useEffect(() => {
     if (scrollRef.current) {

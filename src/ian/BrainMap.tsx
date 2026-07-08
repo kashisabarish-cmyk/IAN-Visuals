@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Neuron } from './engine';
 import { ZoomIn, ZoomOut, Maximize2, Minimize2, RotateCcw, Filter, Search, X, Trash2 } from 'lucide-react';
 

@@ -176,7 +176,6 @@ function MoodIndicator({ mood, angerLevel }: { mood: IanMood; angerLevel: number
 export default function EmotionDashboard({ emotion, killMode, accent, userName }: Props) {
   const accentCfg = ACCENT_COLORS[accent];
   const main = killMode ? '#ef4444' : accentCfg.main;
-  const glow = killMode ? 'rgba(239,68,68,0.5)' : accentCfg.glow;
 
   return (
     <div className="flex flex-col h-full">
